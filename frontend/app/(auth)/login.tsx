@@ -20,7 +20,7 @@ export default function LoginScreen() {
       console.log(error);
       Alert.alert("Error", "Gagal Login: " + (error.response?.data?.message || "Endpoint tidak ditemukan (404)"));
     } finally {
-      setLoading(false); // INI PENTING agar tombol berhenti loading
+      setLoading(false); 
     }
   };
 
@@ -87,7 +87,7 @@ export default function LoginScreen() {
   );
 }
 
-// ... Styles tetap sama seperti sebelumnya
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F4FF' },
   scrollContent: { padding: 24, flexGrow: 1 },
