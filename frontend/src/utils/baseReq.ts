@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from "expo-router";
 
 export const axiosBaseConfig: AxiosRequestConfig = {
-  // Gunakan IP 10.0.2.2 jika pakai Emulator Android agar bisa tembus ke Golang localhost:8080
+  // Pakai IP 10.0.2.2 (di .env) kl pakai Emulator Android biar bisa tembus ke Golang localhost:8080
   baseURL: process.env.EXPO_PUBLIC_API_URL, 
   headers: {
     // "X-Client-Type": "mobile",
@@ -17,7 +17,7 @@ export const axiosBaseConfig: AxiosRequestConfig = {
 
 const request = axios.create(axiosBaseConfig);
 
-// Request interceptor: Tempelkan token otomatis setiap mau nembak API
+// Tempel token otomatis setiap mau nembak API
 request.interceptors.request.use(
   async (config) => {
     const accessToken = await AsyncStorage.getItem("access_token");
@@ -33,18 +33,17 @@ request.interceptors.request.use(
 request.interceptors.response.use(
     (response) => response,
     async (error) => {
-      // Di baseReq.ts atau auth.context.tsx
 
 
-// ... di dalam interceptor atau fungsi logout
-if (error.response?.status === 401) {
-  // Gunakan 'any' sementara jika 'string[]' masih ditolak untuk memastikan fungsionalitas
-  await AsyncStorage.removeItem("access_token");
-await AsyncStorage.removeItem("refresh_token");
-  
-  // Pastikan memanggil router sebagai fungsi objek
-  router.replace("/(auth)/login" as any); 
-}
+      if (error.response?.status === 401) {
+        
+        // Hanya redirect kalau BUKAN dari endpoint auth
+        if (!error.config?.url?.includes('/auth/')) {
+          await AsyncStorage.removeItem("access_token");
+          await AsyncStorage.removeItem("refresh_token");
+          router.replace("/(auth)/login");
+        }
+      }
       return Promise.reject(error);
     }
   );

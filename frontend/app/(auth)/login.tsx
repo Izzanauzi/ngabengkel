@@ -1,48 +1,64 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Image, 
-  ActivityIndicator, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
-  ScrollView 
+  ScrollView,
 } from "react-native";
 import { Link } from "expo-router";
 import { useAuth } from "../../src/contexts/auth.context";
 import { baseFetch } from "../../src/utils/baseFetch";
 import { LoginResponse } from "../../src/@types/api";
 
+const CarIcon = () => (
+  <Text style={{ fontSize: 28 }}>🚗</Text>
+);
+
 export default function LoginPage() {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
-  const [showPassword, setShowPassword] = useState(false);
   const [internalLoading, setInternalLoading] = useState(false);
-  
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const { login } = useAuth();
 
   const handleChange = (name: string, value: string) => {
     setCredentials({ ...credentials, [name]: value });
+    if (errorMessage) setErrorMessage(null); // Reset error saat user mengetik
   };
 
   const handleLogin = async () => {
     setInternalLoading(true);
+    setErrorMessage(null);
+    // console.log("Payload dikirim:", credentials); 
     try {
-      // Menggunakan baseFetch yang sudah kita buat di folder utils
       const data = await baseFetch<LoginResponse>({
-        url: "/auth/login", // Pastikan path-nya lengkap sesuai main.go
+        url: "/auth/login",
         method: "POST",
-        payload: credentials, // Ini data email & password kamu
-        
+        payload: credentials,
+        options: {
+          showError: false, 
+        },
       });
-      console.log("Data dari Server:", data);
 
       if (data?.token) {
-        await login(data.token); // Fungsi login dari AuthContext
+        await login(data.token);
       }
-    } catch (error) {
+    } catch (error: any) {
+  //     console.log("ERROR OBJECT:", JSON.stringify(error));
+  // console.log("ERROR RESPONSE:", error?.response);
+  // console.log("ERROR STATUS:", error?.response?.status);
+      // error message 
+      if (error?.response?.status === 401) {
+        setErrorMessage("Email atau Password salah. Silahkan coba lagi.");
+        // console.log("setErrorMessage dipanggil!");
+      } else {
+        setErrorMessage("Terjadi kesalahan. Silahkan coba lagi.");
+      }
       console.error("Login failed:", error);
     } finally {
       setInternalLoading(false);
@@ -50,73 +66,85 @@ export default function LoginPage() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.card}>
-          {/* Logo */}
-          {/* <Image
-            source={require("../../assets/logo/logo-laskara.png")} // Pastikan path & format benar
-            style={styles.logo}
-            resizeMode="contain"
-          /> */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.navbar}>
+          <CarIcon />
+          <Text style={styles.navTitle}>Ngabengkel</Text>
+        </View>
 
+        
+        <View style={styles.body}>
+          <View style={styles.headingContainer}>
+            <Text style={styles.heading}>Selamat datang{"\n"}kembali!</Text>
+            <Text style={styles.subheading}>
+              Masuk untuk melanjutkan ke layanan bengkel
+            </Text>
+          </View>
+
+          {/* Form */}
           <View style={styles.form}>
-            {/* Input Email */}
+            {/* Email */}
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="john@gmail.com"
+              placeholder="Masukkan email Anda"
+              placeholderTextColor="#aaa"
               keyboardType="email-address"
               autoCapitalize="none"
               value={credentials.email}
               onChangeText={(val) => handleChange("email", val)}
             />
 
-            {/* Input Password */}
-            <Text style={styles.label}>Kata Sandi</Text>
-            <div style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Minimal 8 karakter"
-                secureTextEntry={!showPassword}
-                value={credentials.password}
-                onChangeText={(val) => handleChange("password", val)}
-              />
-              {/* <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Image 
-                  source={require("../../assets/icon/icon-eye.png")} 
-                  style={styles.eyeIcon} 
-                />
-              </TouchableOpacity> */}
-            </div>
+            {/* Password */}
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Masukkan password"
+              placeholderTextColor="#aaa"
+              secureTextEntry
+              value={credentials.password}
+              onChangeText={(val) => handleChange("password", val)}
+            />
 
-            <Link href="/auth/forgot-password" style={styles.forgotPass}>
-              Lupa kata sandi?
-            </Link>
+            {/* Error Message */}
+            {/* {console.log("RENDER - errorMessage:", errorMessage)} */}
+            {errorMessage && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
           </View>
+        </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionContainer}>
-            <Link href="/auth/register" asChild>
-              <TouchableOpacity style={styles.btnOutline}>
-                <Text style={styles.btnTextOutline}>Daftar</Text>
-              </TouchableOpacity>
+        
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.btnPrimary, internalLoading && styles.btnDisabled]}
+            onPress={handleLogin}
+            disabled={internalLoading}
+            activeOpacity={0.85}
+          >
+            {internalLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnTextPrimary}>Masuk</Text>
+            )}
+          </TouchableOpacity>
+
+        
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>Belum punya akun? </Text>
+            <Link href="/register">
+              <Text style={styles.registerLink}>Daftar</Text>
             </Link>
-
-            <TouchableOpacity 
-              style={styles.btnPrimary} 
-              onPress={handleLogin}
-              disabled={internalLoading}
-            >
-              {internalLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.btnTextPrimary}>Masuk</Text>
-              )}
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -125,60 +153,128 @@ export default function LoginPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  scrollContainer: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  card: {
-    backgroundColor: "white",
-    width: "100%",
-    maxWidth: 400,
-    padding: 30,
-    borderRadius: 24,
-    alignItems: "center",
-    elevation: 4, // Shadow Android
-    shadowColor: "#000", // Shadow iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#EEF2F7",
   },
-  logo: { width: 150, height: 150, marginBottom: 20 },
-  form: { w: "100%", width: '100%' },
-  label: { fontSize: 16, marginBottom: 8, color: "#333" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 16,
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
-  passwordContainer: {
+
+  // Navbar
+  navbar: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 40,
   },
-  passwordInput: { flex: 1, paddingVertical: 12, fontSize: 16 },
-  // eyeIcon: { width: 24, height: 24, opacity: 0.5 },
-  forgotPass: { alignSelf: "flex-end", marginTop: 10, color: "#666", fontSize: 14 },
-  actionContainer: { flexDirection: "row", gap: 12, marginTop: 30, width: "100%" },
-  btnOutline: {
+  navTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a2e",
+  },
+
+
+  body: {
     flex: 1,
+  },
+  headingContainer: {
+    marginBottom: 32,
+  },
+  heading: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#1a1a2e",
+    lineHeight: 40,
+    marginBottom: 8,
+  },
+  subheading: {
+    fontSize: 14,
+    color: "#888",
+    fontStyle: "italic",
+  },
+
+  // Form
+  form: {
+    gap: 4,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a1a2e",
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  input: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1a1a2e",
     borderWidth: 1,
-    borderColor: "#A4112D",
-    padding: 12,
-    borderRadius: 8,
+    borderColor: "#e0e0e0",
+  },
+
+  // Error
+  errorBox: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#FFF0F0",
+    borderWidth: 1,
+    borderColor: "#FFCCCC",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 16,
+    gap: 8,
   },
-  btnTextOutline: { color: "#A4112D", fontSize: 16, fontWeight: "600" },
-  btnPrimary: {
+  errorIcon: {
+    fontSize: 14,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#CC0000",
     flex: 1,
-    backgroundColor: "#A4112D",
-    padding: 12,
-    borderRadius: 8,
+  },
+
+  footer: {
+    marginTop: 48,
+    alignItems: "center",
+    gap: 16,
+  },
+  btnPrimary: {
+    backgroundColor: "#3B7BF6",
+    borderRadius: 50,
+    paddingVertical: 16,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-  btnTextPrimary: { color: "white", fontSize: 16, fontWeight: "600" },
+  btnDisabled: {
+    opacity: 0.7,
+  },
+  btnTextPrimary: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  registerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  registerText: {
+    fontSize: 14,
+    color: "#555",
+  },
+  registerLink: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a2e",
+    textDecorationLine: "underline",
+  },
 });
