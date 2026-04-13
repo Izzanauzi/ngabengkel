@@ -49,7 +49,7 @@ func main() {
 	// 7. Nyalakan server
 	addr := ":" + cfg.AppPort
 	fmt.Printf("Server running on port %s\n", cfg.AppPort)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, middleware.EnableCORS(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
