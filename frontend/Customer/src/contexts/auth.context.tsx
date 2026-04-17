@@ -9,7 +9,6 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-// 1. Pastikan variabel ini didefinisikan sebelum digunakan di Provider
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -33,13 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (newToken: string) => {
     await AsyncStorage.setItem("access_token", newToken);
     setToken(newToken);
-    router.replace("/beranda/home");
+    router.replace("/(beranda)/home");
   };
 
   const logout = async () => {
     await AsyncStorage.removeItem("access_token");
     setToken(null);
-    router.replace("/(auth)/login");
+    router.replace("/(beranda)/home");
   };
 
   return (

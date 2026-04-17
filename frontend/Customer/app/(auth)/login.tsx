@@ -34,7 +34,6 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setInternalLoading(true);
     setErrorMessage(null);
-    // console.log("Payload dikirim:", credentials); 
     try {
       const data = await baseFetch<LoginResponse>({
         url: "/auth/login",
@@ -49,13 +48,9 @@ export default function LoginPage() {
         await login(data.token);
       }
     } catch (error: any) {
-  //     console.log("ERROR OBJECT:", JSON.stringify(error));
-  // console.log("ERROR RESPONSE:", error?.response);
-  // console.log("ERROR STATUS:", error?.response?.status);
       // error message 
       if (error?.response?.status === 401) {
         setErrorMessage("Email atau Password salah. Silahkan coba lagi.");
-        // console.log("setErrorMessage dipanggil!");
       } else {
         setErrorMessage("Terjadi kesalahan. Silahkan coba lagi.");
       }
@@ -114,7 +109,6 @@ export default function LoginPage() {
             />
 
             {/* Error Message */}
-            {/* {console.log("RENDER - errorMessage:", errorMessage)} */}
             {errorMessage && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorIcon}>⚠️</Text>
