@@ -31,6 +31,22 @@ interface FieldErrors {
   konfirmasiPassword?: string;
 }
 
+interface AuthResponse {
+  token: string;
+  user: {
+    user_id: string;
+    nama: string;
+    email: string;
+    role: "customer" | "admin";
+  };
+}
+
+interface ApiError {
+  code: number;
+  message: string;
+  errors?: string[];
+}
+
 export default function RegisterPage() {
   const [form, setForm] = useState<RegisterForm>({
     nama: "",
@@ -42,14 +58,15 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
 
   const handleChange = (name: keyof RegisterForm, value: string) => {
     setForm({ ...form, [name]: value });
-    // Reset error field saat user mengetik
     if (fieldErrors[name]) {
       setFieldErrors({ ...fieldErrors, [name]: undefined });
     }
     if (globalError) setGlobalError(null);
+    if (apiErrors.length > 0) setApiErrors([]);
   };
 
   const validate = (): boolean => {
@@ -68,7 +85,7 @@ export default function RegisterPage() {
     if (!form.telepon.trim()) {
       errors.telepon = "Nomor telepon wajib diisi";
     } else if (!/^08\d{8,11}$/.test(form.telepon)) {
-      errors.telepon = "Format nomor telepon tidak valid";
+      errors.telepon = "Format nomor telepon tidak valid (contoh: 08123456789)";
     }
 
     if (!form.password) {
@@ -92,8 +109,10 @@ export default function RegisterPage() {
 
     setLoading(true);
     setGlobalError(null);
+    setApiErrors([]);
+
     try {
-      await baseFetch({
+      const response = await baseFetch<AuthResponse>({
         url: "/auth/register",
         method: "POST",
         payload: {
@@ -103,13 +122,29 @@ export default function RegisterPage() {
           password: form.password,
         },
       });
-      // register berhasil
+
+      // Register berhasil → response 201 dengan AuthResponse
+      // Token bisa disimpan di sini jika diperlukan (misal: AsyncStorage)
+      // Untuk sekarang langsung redirect ke login
       router.replace("/(auth)/login");
     } catch (error: any) {
+      // Error 
+      const apiError: ApiError | undefined = error?.response?.data;
+
       if (error?.response?.status === 400) {
-        setGlobalError("Email sudah terdaftar. Silahkan gunakan email lain.");
+        if (apiError?.errors && apiError.errors.length > 0) {
+          setApiErrors(apiError.errors);
+        } else {
+          setGlobalError(
+            apiError?.message ?? "Email sudah terdaftar. Silahkan gunakan email lain."
+          );
+        }
+      } else if (error?.response?.status === 401) {
+        setGlobalError("Tidak terotorisasi. Silahkan coba lagi.");
       } else {
-        setGlobalError("Terjadi kesalahan. Silahkan coba lagi.");
+        setGlobalError(
+          apiError?.message ?? "Terjadi kesalahan. Silahkan coba lagi."
+        );
       }
     } finally {
       setLoading(false);
@@ -139,7 +174,6 @@ export default function RegisterPage() {
 
         {/* Form */}
         <View style={styles.form}>
-          {/* Nama Lengkap */}
           <FormField
             label="Nama Lengkap"
             placeholder="Masukkan nama lengkap Anda"
@@ -148,7 +182,6 @@ export default function RegisterPage() {
             error={fieldErrors.nama}
           />
 
-          {/* Email */}
           <FormField
             label="Email"
             placeholder="Masukkan email Anda"
@@ -159,17 +192,15 @@ export default function RegisterPage() {
             autoCapitalize="none"
           />
 
-          {/* Nomor Telepon */}
           <FormField
             label="Nomor Telepon"
-            placeholder="0817-xxxx-xxxx"
+            placeholder="08xxxxxxxxxx"
             value={form.telepon}
             onChangeText={(val) => handleChange("telepon", val)}
             error={fieldErrors.telepon}
             keyboardType="phone-pad"
           />
 
-          {/* Password */}
           <FormField
             label="Password"
             placeholder="Minimal 8 karakter"
@@ -179,7 +210,6 @@ export default function RegisterPage() {
             secureTextEntry
           />
 
-          {/* Konfirm Password */}
           <FormField
             label="Konfirmasi Password"
             placeholder="Ulangi password"
@@ -189,11 +219,23 @@ export default function RegisterPage() {
             secureTextEntry
           />
 
-          {/* Error message */}
+          {/* Global error message */}
           {globalError && (
             <View style={styles.errorBox}>
               <Text style={styles.errorIcon}>⚠️</Text>
               <Text style={styles.errorText}>{globalError}</Text>
+            </View>
+          )}
+
+          {/* API error */}
+          {apiErrors.length > 0 && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                {apiErrors.map((err, i) => (
+                  <Text key={i} style={styles.errorText}>• {err}</Text>
+                ))}
+              </View>
             </View>
           )}
         </View>
@@ -263,7 +305,6 @@ function FormField({
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -305,7 +346,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Form
   form: {
     gap: 2,
   },
@@ -339,10 +379,9 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // error
   errorBox: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     backgroundColor: "#FFF0F0",
     borderWidth: 1,
     borderColor: "#FFCCCC",
