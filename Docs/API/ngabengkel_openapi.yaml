@@ -1,0 +1,1288 @@
+openapi: 3.0.3
+
+# ── INFO ──────────────────────────────────────────────────────────────────────
+# Bagian info: metadata tentang API ini
+info:
+  title: Ngabengkel API
+  description: |
+    REST API untuk aplikasi manajemen bengkel Ngabengkel.
+    
+    ## Autentikasi
+    Semua endpoint (kecuali `/auth/*` dan `GET /schedule`) memerlukan JWT Bearer token.
+    
+    Cara pakai: setelah login, simpan token yang diterima, lalu sertakan di setiap request:
+    ```
+    Authorization: Bearer <token_kamu>
+    ```
+    
+    ## Role
+    - `customer` — akses ke endpoint Customer App
+    - `admin` — akses ke endpoint Admin App
+  version: 1.0.0
+  contact:
+    name: Tim Ngabengkel
+
+# ── SERVER ────────────────────────────────────────────────────────────────────
+# URL base API. Bisa diganti saat deploy.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+  - url: https://ngabengkel-api.railway.app/api/v1
+    description: Production
+
+# ── SECURITY ─────────────────────────────────────────────────────────────────
+# Definisi skema autentikasi JWT
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT yang didapat dari endpoint /auth/login
+
+  # ── REUSABLE SCHEMAS ───────────────────────────────────────────────────────
+  # Definisi model data yang dipakai berulang di banyak endpoint
+  schemas:
+
+    # ── Error ────────────────────────────────────────────────────────────────
+    Error:
+      type: object
+      properties:
+        code:    { type: integer, example: 400 }
+        message: { type: string,  example: "Validasi gagal" }
+        errors:
+          type: array
+          items: { type: string }
+          example: ["Email sudah terdaftar", "Password minimal 8 karakter"]
+
+    # ── Auth ─────────────────────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email, example: "budi@email.com" }
+        password: { type: string, example: "password123" }
+
+    RegisterRequest:
+      type: object
+      required: [nama, email, telepon, password]
+      properties:
+        nama:     { type: string, example: "Budi Santoso" }
+        email:    { type: string, format: email, example: "budi@email.com" }
+        telepon:  { type: string, example: "08123456789" }
+        password: { type: string, minLength: 8, example: "password123" }
+
+    AuthResponse:
+      type: object
+      properties:
+        token:    { type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+        user:
+          type: object
+          properties:
+            user_id:  { type: string, format: uuid }
+            nama:     { type: string, example: "Budi Santoso" }
+            email:    { type: string, example: "budi@email.com" }
+            role:     { type: string, enum: [customer, admin] }
+
+    # ── User / Customer ───────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        user_id:  { type: string, format: uuid }
+        nama:     { type: string, example: "Budi Santoso" }
+        email:    { type: string, example: "budi@email.com" }
+        telepon:  { type: string, example: "08123456789" }
+        role:     { type: string, enum: [customer, admin] }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        nama:    { type: string, example: "Budi Santoso" }
+        telepon: { type: string, example: "08123456789" }
+
+    # ── Kendaraan ─────────────────────────────────────────────────────────────
+    Kendaraan:
+      type: object
+      properties:
+        kendaraan_id:  { type: string, format: uuid }
+        user_id:       { type: string, format: uuid, nullable: true }
+        merek:         { type: string, example: "Honda" }
+        model:         { type: string, example: "Vario 150" }
+        tahun:         { type: integer, example: 2021 }
+        nomor_polisi:  { type: string, example: "D 1234 ABC" }
+        warna:         { type: string, example: "Merah" }
+        nomor_rangka:  { type: string, example: "MH1JFD110MK123456", nullable: true }
+
+    KendaraanRequest:
+      type: object
+      required: [merek, model, tahun, nomor_polisi]
+      properties:
+        merek:        { type: string, example: "Honda" }
+        model:        { type: string, example: "Vario 150" }
+        tahun:        { type: integer, example: 2021 }
+        nomor_polisi: { type: string, example: "D 1234 ABC" }
+        warna:        { type: string, example: "Merah" }
+        nomor_rangka: { type: string, example: "MH1JFD110MK123456" }
+
+    # ── Booking ───────────────────────────────────────────────────────────────
+    Booking:
+      type: object
+      properties:
+        booking_id:   { type: string, format: uuid }
+        user_id:      { type: string, format: uuid }
+        kendaraan_id: { type: string, format: uuid }
+        kendaraan:    { $ref: '#/components/schemas/Kendaraan' }
+        eta:          { type: string, format: date-time, example: "2025-08-10T09:00:00Z" }
+        keluhan_awal: { type: string, example: "Mesin kasar dan boros bensin" }
+        status:
+          type: string
+          enum: [menunggu_konfirmasi, disetujui, ditolak, dibatalkan]
+        alasan_tolak: { type: string, nullable: true }
+        created_at:   { type: string, format: date-time }
+
+    BookingRequest:
+      type: object
+      required: [kendaraan_id, eta]
+      properties:
+        kendaraan_id: { type: string, format: uuid }
+        eta:          { type: string, format: date-time, example: "2025-08-10T09:00:00Z" }
+        keluhan_awal: { type: string, example: "Mesin kasar dan boros bensin" }
+
+    RejectBookingRequest:
+      type: object
+      required: [alasan]
+      properties:
+        alasan: { type: string, example: "Slot bengkel penuh pada waktu tersebut" }
+
+    # ── Slot & Queue ──────────────────────────────────────────────────────────
+    Slot:
+      type: object
+      properties:
+        slot_id:    { type: string, format: uuid }
+        nomor_slot: { type: string, example: "S01" }
+        status:     { type: string, enum: [tersedia, terisi, tidak_tersedia] }
+        wo_id:      { type: string, format: uuid, nullable: true }
+
+    ScheduleResponse:
+      type: object
+      properties:
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/Slot' }
+        jumlah_antrian: { type: integer, example: 3 }
+
+    UpdateSlotRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [tersedia, tidak_tersedia] }
+
+    AssignSlotRequest:
+      type: object
+      required: [wo_id, slot_id]
+      properties:
+        wo_id:   { type: string, format: uuid }
+        slot_id: { type: string, format: uuid }
+
+    # ── Work Order ────────────────────────────────────────────────────────────
+    WorkOrder:
+      type: object
+      properties:
+        wo_id:                { type: string, format: uuid }
+        nomor_wo:             { type: string, example: "WO-20250801-001" }
+        user_id:              { type: string, format: uuid, nullable: true }
+        kendaraan_id:         { type: string, format: uuid }
+        kendaraan:            { $ref: '#/components/schemas/Kendaraan' }
+        booking_id:           { type: string, format: uuid, nullable: true }
+        slot_id:              { type: string, format: uuid, nullable: true }
+        mekanik_id:           { type: string, format: uuid, nullable: true }
+        mekanik:              { $ref: '#/components/schemas/Mekanik' }
+        deskripsi_kerusakan:  { type: string }
+        estimasi_biaya:       { type: number, example: 150000 }
+        biaya_jasa:           { type: number, example: 100000 }
+        status:
+          type: string
+          enum: [dibuat, sedang_dikerjakan, menunggu_persetujuan, selesai, lunas]
+        progress:
+          type: array
+          items: { $ref: '#/components/schemas/Progress' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WOItem' }
+        created_at: { type: string, format: date-time }
+
+    CreateWORequest:
+      type: object
+      required: [kendaraan_id, deskripsi_kerusakan]
+      properties:
+        user_id:             { type: string, format: uuid, nullable: true, description: "null jika walk-in" }
+        kendaraan_id:        { type: string, format: uuid }
+        booking_id:          { type: string, format: uuid, nullable: true }
+        deskripsi_kerusakan: { type: string, example: "Kampas rem habis, oli mesin kotor" }
+        estimasi_biaya:      { type: number, example: 150000 }
+        biaya_jasa:          { type: number, example: 100000 }
+
+    # Untuk walk-in: buat customer + kendaraan baru sekaligus
+    CreateWalkInRequest:
+      type: object
+      required: [customer, kendaraan, deskripsi_kerusakan]
+      properties:
+        customer:
+          type: object
+          required: [nama, telepon]
+          properties:
+            nama:    { type: string, example: "Pelanggan Walk-in" }
+            telepon: { type: string, example: "08199999999" }
+        kendaraan:
+          type: object
+          required: [merek, model, tahun, nomor_polisi]
+          properties:
+            merek:        { type: string, example: "Yamaha" }
+            model:        { type: string, example: "NMAX" }
+            tahun:        { type: integer, example: 2020 }
+            nomor_polisi: { type: string, example: "D 5678 XYZ" }
+        deskripsi_kerusakan: { type: string }
+        estimasi_biaya:      { type: number }
+        biaya_jasa:          { type: number }
+
+    # ── Progress ──────────────────────────────────────────────────────────────
+    Progress:
+      type: object
+      properties:
+        progress_id:         { type: string, format: uuid }
+        wo_id:               { type: string, format: uuid }
+        deskripsi:           { type: string, example: "Ban sudah diganti, lanjut cek kampas rem" }
+        tipe:                { type: string, enum: [update, suspend] }
+        foto_url:            { type: string, nullable: true, example: "https://storage.../foto.jpg" }
+        est_biaya_tambahan:  { type: number, nullable: true }
+        created_at:          { type: string, format: date-time }
+
+    UploadProgressRequest:
+      type: object
+      required: [deskripsi]
+      properties:
+        deskripsi: { type: string, example: "Mesin sudah turun, ditemukan kerusakan pada piston" }
+        foto_url:  { type: string, nullable: true }
+
+    SuspendWORequest:
+      type: object
+      required: [deskripsi_masalah, estimasi_biaya_tambahan]
+      properties:
+        deskripsi_masalah:      { type: string, example: "Ditemukan keretakan pada blok mesin" }
+        estimasi_biaya_tambahan: { type: number, example: 500000 }
+
+    # ── Mekanik ───────────────────────────────────────────────────────────────
+    Mekanik:
+      type: object
+      properties:
+        mekanik_id: { type: string, format: uuid }
+        nama:       { type: string, example: "Deni Susanto" }
+        telepon:    { type: string, example: "08111222333" }
+        keahlian:   { type: string, example: "Mesin 4-tak, Kelistrikan" }
+        status:     { type: string, enum: [tersedia, tidak_tersedia] }
+
+    MekanikRequest:
+      type: object
+      required: [nama, telepon]
+      properties:
+        nama:     { type: string, example: "Deni Susanto" }
+        telepon:  { type: string, example: "08111222333" }
+        keahlian: { type: string, example: "Mesin 4-tak, Kelistrikan" }
+        status:   { type: string, enum: [tersedia, tidak_tersedia], default: tersedia }
+
+    # ── Inventory ─────────────────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      properties:
+        inventory_id:   { type: string, format: uuid }
+        tipe:           { type: string, enum: [sparepart, material] }
+        nama:           { type: string, example: "Kampas Rem Depan" }
+        kode_part:      { type: string, nullable: true, example: "KR-HON-001" }
+        merek:          { type: string, nullable: true, example: "FDR" }
+        kompatibilitas: { type: string, nullable: true, example: "Honda Vario 125/150" }
+        satuan:         { type: string, example: "pcs" }
+        stok:           { type: integer, example: 25 }
+        harga_satuan:   { type: number, example: 45000 }
+
+    InventoryRequest:
+      type: object
+      required: [tipe, nama, satuan, harga_satuan]
+      properties:
+        tipe:           { type: string, enum: [sparepart, material] }
+        nama:           { type: string, example: "Kampas Rem Depan" }
+        kode_part:      { type: string, nullable: true, description: "Wajib jika tipe=sparepart" }
+        merek:          { type: string, nullable: true }
+        kompatibilitas: { type: string, nullable: true }
+        satuan:         { type: string, example: "pcs" }
+        stok:           { type: integer, example: 25 }
+        harga_satuan:   { type: number, example: 45000 }
+
+    # ── WO Item ───────────────────────────────────────────────────────────────
+    WOItem:
+      type: object
+      properties:
+        wo_item_id:   { type: string, format: uuid }
+        inventory_id: { type: string, format: uuid }
+        nama_item:    { type: string, example: "Kampas Rem Depan" }
+        jumlah:       { type: integer, example: 2 }
+        harga_satuan: { type: number, example: 45000 }
+        subtotal:     { type: number, example: 90000 }
+
+    AddWOItemRequest:
+      type: object
+      required: [inventory_id, jumlah]
+      properties:
+        inventory_id: { type: string, format: uuid }
+        jumlah:       { type: integer, minimum: 1, example: 2 }
+
+    # ── Transaksi / Nota ──────────────────────────────────────────────────────
+    Nota:
+      type: object
+      properties:
+        wo_id:          { type: string, format: uuid }
+        nomor_wo:       { type: string, example: "WO-20250801-001" }
+        customer:       { $ref: '#/components/schemas/User' }
+        kendaraan:      { $ref: '#/components/schemas/Kendaraan' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WOItem' }
+        biaya_jasa:     { type: number, example: 100000 }
+        total_material: { type: number, example: 90000 }
+        total_biaya:    { type: number, example: 190000 }
+
+    Transaction:
+      type: object
+      properties:
+        transaction_id:    { type: string, format: uuid }
+        wo_id:             { type: string, format: uuid }
+        total_biaya:       { type: number, example: 190000 }
+        metode_pembayaran: { type: string, example: "tunai" }
+        tanggal_bayar:     { type: string, format: date-time }
+
+    ConfirmPaymentRequest:
+      type: object
+      required: [metode_pembayaran]
+      properties:
+        metode_pembayaran: { type: string, example: "tunai" }
+
+    # ── Laporan ───────────────────────────────────────────────────────────────
+    LaporanTransaksi:
+      type: object
+      properties:
+        periode_mulai:    { type: string, format: date }
+        periode_akhir:    { type: string, format: date }
+        total_pendapatan: { type: number, example: 4500000 }
+        jumlah_transaksi: { type: integer, example: 12 }
+        transaksi:
+          type: array
+          items: { $ref: '#/components/schemas/Transaction' }
+
+  # ── REUSABLE RESPONSES ─────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Token tidak valid atau tidak disertakan
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { code: 401, message: "Token tidak valid" }
+
+    Forbidden:
+      description: Role tidak memiliki akses ke endpoint ini
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { code: 403, message: "Akses ditolak" }
+
+    NotFound:
+      description: Data tidak ditemukan
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+    BadRequest:
+      description: Request tidak valid / validasi gagal
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+# ── SECURITY GLOBAL ───────────────────────────────────────────────────────────
+# Semua endpoint butuh auth KECUALI yang di-override dengan security: []
+security:
+  - BearerAuth: []
+
+# ── TAGS ─────────────────────────────────────────────────────────────────────
+# Pengelompokan endpoint di Swagger UI
+tags:
+  - name: Auth
+    description: Login, Register, Logout
+  - name: Schedule
+    description: Jadwal & Antrian (publik, tanpa login)
+  - name: Kendaraan
+    description: Kelola kendaraan milik customer
+  - name: Booking
+    description: Pengajuan dan manajemen booking
+  - name: Work Order
+    description: Siklus hidup Work Order
+  - name: Slot
+    description: Manajemen slot bengkel
+  - name: Inventori
+    description: Kelola sparepart dan material
+  - name: Mekanik
+    description: Kelola data mekanik (Admin only)
+  - name: Customer
+    description: Kelola data customer (Admin only)
+  - name: Pembayaran
+    description: Nota tagihan dan konfirmasi pembayaran
+  - name: Laporan
+    description: Laporan transaksi dan histori
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PATHS — Definisi semua endpoint
+# ═══════════════════════════════════════════════════════════════════════════════
+paths:
+
+  # ── AUTH ───────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register customer baru
+      security: []            # endpoint ini tidak butuh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Registrasi berhasil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login (customer atau admin)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Login berhasil, token dikembalikan
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Email atau password salah
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { code: 401, message: "Email atau password tidak valid" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (invalidasi token di sisi client)
+      description: |
+        Karena JWT stateless, logout cukup menghapus token di client.
+        Endpoint ini bisa dipakai untuk mencatat aktivitas logout di server.
+      responses:
+        '200':
+          description: Logout berhasil
+          content:
+            application/json:
+              example: { message: "Logout berhasil" }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Ambil data user yang sedang login
+      responses:
+        '200':
+          description: Data user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── SCHEDULE (PUBLIK) ──────────────────────────────────────────────────────
+  /schedule:
+    get:
+      tags: [Schedule]
+      summary: Lihat status slot dan jumlah antrian (tanpa login)
+      security: []
+      responses:
+        '200':
+          description: Status slot dan antrian
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleResponse' }
+              example:
+                slots:
+                  - { slot_id: "uuid-1", nomor_slot: "S01", status: "tersedia", wo_id: null }
+                  - { slot_id: "uuid-2", nomor_slot: "S02", status: "terisi",   wo_id: "uuid-wo" }
+                  - { slot_id: "uuid-3", nomor_slot: "S03", status: "tersedia", wo_id: null }
+                jumlah_antrian: 2
+
+  # ── KENDARAAN ─────────────────────────────────────────────────────────────
+  /kendaraan:
+    get:
+      tags: [Kendaraan]
+      summary: Daftar kendaraan milik customer yang login
+      responses:
+        '200':
+          description: List kendaraan
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Kendaraan' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Kendaraan]
+      summary: Tambah kendaraan baru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KendaraanRequest' }
+      responses:
+        '201':
+          description: Kendaraan berhasil ditambahkan
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kendaraan' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /kendaraan/{kendaraan_id}:
+    parameters:
+      - name: kendaraan_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    put:
+      tags: [Kendaraan]
+      summary: Edit data kendaraan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KendaraanRequest' }
+      responses:
+        '200':
+          description: Kendaraan berhasil diupdate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kendaraan' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Kendaraan]
+      summary: Hapus kendaraan
+      responses:
+        '200':
+          description: Kendaraan berhasil dihapus
+          content:
+            application/json:
+              example: { message: "Kendaraan berhasil dihapus" }
+        '400':
+          description: Tidak bisa dihapus karena ada WO aktif
+          content:
+            application/json:
+              example: { code: 400, message: "Kendaraan tidak dapat dihapus karena memiliki servis aktif" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── BOOKING ────────────────────────────────────────────────────────────────
+  /bookings:
+    get:
+      tags: [Booking]
+      summary: |
+        Daftar booking.
+        Customer: booking milik sendiri.
+        Admin: semua booking masuk.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [menunggu_konfirmasi, disetujui, ditolak, dibatalkan]
+          description: Filter berdasarkan status (opsional)
+      responses:
+        '200':
+          description: List booking
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    post:
+      tags: [Booking]
+      summary: Buat booking baru (customer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingRequest' }
+      responses:
+        '201':
+          description: Booking berhasil dibuat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /bookings/{booking_id}:
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [Booking]
+      summary: Detail booking
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Booking]
+      summary: Batalkan booking (customer, hanya status menunggu_konfirmasi)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Booking berhasil dibatalkan" }
+        '400':
+          description: Booking sudah diproses, tidak bisa dibatalkan
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/{booking_id}/approve:
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Booking]
+      summary: Setujui booking (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Booking disetujui" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/{booking_id}/reject:
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Booking]
+      summary: Tolak booking (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectBookingRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Booking ditolak" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── WORK ORDER ─────────────────────────────────────────────────────────────
+  /work-orders:
+    get:
+      tags: [Work Order]
+      summary: |
+        Daftar WO.
+        Customer: WO aktif milik sendiri.
+        Admin: semua WO.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [dibuat, sedang_dikerjakan, menunggu_persetujuan, selesai, lunas]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WorkOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    post:
+      tags: [Work Order]
+      summary: Buat WO baru dari customer terdaftar (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWORequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrder' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/walk-in:
+    post:
+      tags: [Work Order]
+      summary: Buat WO untuk customer walk-in (Admin only)
+      description: Membuat customer baru + kendaraan baru + WO sekaligus dalam satu request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWalkInRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrder' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/{wo_id}:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [Work Order]
+      summary: Detail WO beserta progress dan items
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /work-orders/{wo_id}/progress:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Upload pembaruan progress WO (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UploadProgressRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Progress' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/{wo_id}/suspend:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Tangguhkan WO karena masalah baru (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspendWORequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "WO ditangguhkan, menunggu persetujuan customer" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/{wo_id}/approve-action:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Customer menyetujui tindakan tambahan
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Tindakan disetujui, WO dilanjutkan" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /work-orders/{wo_id}/reject-action:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Customer menolak tindakan tambahan
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Tindakan ditolak" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /work-orders/{wo_id}/finish:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Selesaikan WO (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "WO berhasil diselesaikan" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/{wo_id}/items:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Work Order]
+      summary: Tambahkan item material/sparepart ke WO (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddWOItemRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WOItem' }
+        '400':
+          description: Stok tidak mencukupi
+          content:
+            application/json:
+              example: { code: 400, message: "Stok tidak cukup" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── SLOT ───────────────────────────────────────────────────────────────────
+  /slots:
+    get:
+      tags: [Slot]
+      summary: Daftar semua slot beserta status dan antrian (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items: { $ref: '#/components/schemas/Slot' }
+                  antrian:
+                    type: array
+                    items: { $ref: '#/components/schemas/WorkOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /slots/assign:
+    post:
+      tags: [Slot]
+      summary: Assign WO ke slot (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignSlotRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Slot berhasil di-assign" }
+        '400':
+          description: Slot tidak tersedia
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /slots/{slot_id}/status:
+    parameters:
+      - name: slot_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Slot]
+      summary: Update status slot secara manual (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSlotRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Slot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── INVENTORI ─────────────────────────────────────────────────────────────
+  /inventory:
+    get:
+      tags: [Inventori]
+      summary: Daftar item inventori (Admin only)
+      parameters:
+        - name: tipe
+          in: query
+          schema: { type: string, enum: [sparepart, material] }
+          description: Filter berdasarkan tipe (opsional)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/InventoryItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [Inventori]
+      summary: Tambah item inventori baru (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InventoryRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /inventory/{inventory_id}:
+    parameters:
+      - name: inventory_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    put:
+      tags: [Inventori]
+      summary: Edit item inventori (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InventoryRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Inventori]
+      summary: Hapus item inventori (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Item berhasil dihapus" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── MEKANIK ────────────────────────────────────────────────────────────────
+  /mekanik:
+    get:
+      tags: [Mekanik]
+      summary: Daftar mekanik (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Mekanik' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [Mekanik]
+      summary: Tambah mekanik baru (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MekanikRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mekanik' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /mekanik/{mekanik_id}:
+    parameters:
+      - name: mekanik_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    put:
+      tags: [Mekanik]
+      summary: Edit mekanik (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MekanikRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mekanik' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Mekanik]
+      summary: Hapus mekanik (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Mekanik berhasil dihapus" }
+        '400':
+          description: Mekanik sedang ditugaskan di WO aktif
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── CUSTOMER (ADMIN) ───────────────────────────────────────────────────────
+  /customers:
+    get:
+      tags: [Customer]
+      summary: Daftar customer (Admin only)
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Cari berdasarkan nama atau telepon
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /customers/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    put:
+      tags: [Customer]
+      summary: Edit data customer (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    delete:
+      tags: [Customer]
+      summary: Hapus customer (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              example: { message: "Customer berhasil dihapus" }
+        '400':
+          description: Customer memiliki WO atau booking aktif
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /customers/{user_id}/history:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Customer]
+      summary: Histori servis customer (Admin only)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WorkOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── PEMBAYARAN ─────────────────────────────────────────────────────────────
+  /work-orders/{wo_id}/nota:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Pembayaran]
+      summary: Ambil preview nota tagihan WO (Admin only)
+      description: Mengkalkulasi total biaya dari wo_items + biaya_jasa.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Nota' }
+        '400':
+          description: WO belum berstatus selesai
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /work-orders/{wo_id}/payment:
+    parameters:
+      - name: wo_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Pembayaran]
+      summary: Konfirmasi pembayaran (Admin only) — ubah status WO menjadi lunas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmPaymentRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+        '400':
+          description: WO belum berstatus selesai
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── LAPORAN ────────────────────────────────────────────────────────────────
+  /reports/transactions:
+    get:
+      tags: [Laporan]
+      summary: Laporan transaksi per periode (Admin only)
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2025-08-01" }
+        - name: end_date
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2025-08-31" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LaporanTransaksi' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /reports/history:
+    get:
+      tags: [Laporan]
+      summary: Histori servis milik customer yang login
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WorkOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
