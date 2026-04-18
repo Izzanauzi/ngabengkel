@@ -19,7 +19,7 @@ export default function Home() {
         // ── konten User sudah login ──
         <View>
           <Text>Selamat datang kembali!</Text>
-          <Text>Ini konten khusus member (Customer)</Text>
+          <Text>Ini konten khusus Admin</Text>
         </View>
       ) : (
         // ── konten User belum login ──
