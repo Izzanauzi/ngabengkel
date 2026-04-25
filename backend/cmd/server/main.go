@@ -22,12 +22,14 @@ func main() {
 
 	// 3. Inisialisasi repository
 	userRepo := &repository.UserRepository{DB: db}
+	slotRepo := &repository.SlotRepository{DB: db}
 
 	// 4. Inisialisasi service
 	authService := &service.AuthService{UserRepo: userRepo}
 
 	// 5. Inisialisasi handler
 	authHandler := &handler.AuthHandler{AuthService: authService}
+	scheduleHandler := &handler.ScheduleHandler{SlotRepo: slotRepo}
 
 	// 6. Daftarkan semua route
 	mux := http.NewServeMux()
@@ -42,6 +44,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
+	mux.HandleFunc("GET /api/v1/schedule", scheduleHandler.GetSchedule)
 
 	// Auth routes — butuh token (pakai middleware)
 	mux.HandleFunc("GET /api/v1/auth/me", middleware.RequireAuth(authHandler.Me))
