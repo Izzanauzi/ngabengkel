@@ -1,0 +1,9 @@
+{
+  "name": "ngabengkel-frontend",
+  "private": true,
+  "workspaces": [
+    "Admin",
+    "Customer",
+    "shared"
+  ]
+}
