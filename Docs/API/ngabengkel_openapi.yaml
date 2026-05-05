@@ -565,7 +565,18 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Kendaraan' }
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Validasi gagal
+          content:
+            application/json:
+              examples:
+                fieldKosong:
+                  value: { code: 400, message: "Merek, model, dan nomor polisi wajib diisi" }
+                nomorPolisiDuplikat:
+                  value: { code: 400, message: "Nomor polisi sudah terdaftar" }
+                nomorRangkaDuplikat:
+                  value: { code: 400, message: "Nomor rangka sudah terdaftar" }
+                tahunTidakValid:
+                  value: { code: 400, message: "Tahun tidak valid" }
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -590,8 +601,25 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Kendaraan' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400': 
+          description: Validasi gagal
+          content:
+            application/json:
+              examples:
+                fieldKosong:
+                  value: { code: 400, message: "Merek, model, dan nomor polisi wajib diisi" }
+                nomorPolisiDuplikat:
+                  value: { code: 400, message: "Nomor polisi sudah terdaftar" }
+                nomorRangkaDuplikat:
+                  value: { code: 400, message: "Nomor rangka sudah terdaftar" }
+                tahunTidakValid:
+                  value: { code: 400, message: "Tahun tidak valid" }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Bukan kendaraan milik user ini
+          content:
+            application/json:
+              example: { code: 403, message: "Akses ditolak" }
         '404': { $ref: '#/components/responses/NotFound' }
 
     delete:
@@ -609,6 +637,11 @@ paths:
             application/json:
               example: { code: 400, message: "Kendaraan tidak dapat dihapus karena memiliki servis aktif" }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Bukan kendaraan milik user ini
+          content:
+            application/json:
+              example: { code: 403, message: "Akses ditolak" }
         '404': { $ref: '#/components/responses/NotFound' }
 
   # ── BOOKING ────────────────────────────────────────────────────────────────
