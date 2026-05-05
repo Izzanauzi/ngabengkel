@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
-export default function Booking() {
+export default function History() {
   return (
     <View>
-      <Text>Booking page</Text>
+      <Text>History page</Text>
     </View>
   )
 }

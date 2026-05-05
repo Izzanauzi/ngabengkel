@@ -1,9 +1,11 @@
 import { Text } from 'react-native'
 import { Tabs } from 'expo-router'
+import BottomTab from '../../src/components/bottomTab'
 
 export default function BerandaLayout() {
   return (
     <Tabs
+      tabBar={(props) => <BottomTab {...props} />} // ✅ tambahkan ini
       screenOptions={{
         tabBarActiveTintColor: '#3B7BF6',
         tabBarInactiveTintColor: '#999',
@@ -21,21 +23,24 @@ export default function BerandaLayout() {
         name="home"
         options={{
           title: 'Beranda',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="booking/index"
-        options={{
-          title: 'Booking',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
         }}
       />
       <Tabs.Screen
         name="services/index"
         options={{
-          title: 'Services',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
+          title: 'Servis',
+        }}
+      />
+      <Tabs.Screen
+        name="history/index"
+        options={{
+          title: 'Riwayat',
+        }}
+      />
+      <Tabs.Screen
+        name="profile/index"
+        options={{
+          title: 'Profil',
         }}
       />
     </Tabs>
