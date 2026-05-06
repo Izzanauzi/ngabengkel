@@ -586,7 +586,20 @@ paths:
         in: path
         required: true
         schema: { type: string, format: uuid }
-
+    get:
+      tags: [Kendaraan]
+      summary: Ambil satu kendaraan by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kendaraan' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          content:
+            application/json:
+              example: { code: 403, message: "Akses ditolak" }
+        '404': { $ref: '#/components/responses/NotFound' }
     put:
       tags: [Kendaraan]
       summary: Edit data kendaraan

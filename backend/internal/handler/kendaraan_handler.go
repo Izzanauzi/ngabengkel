@@ -99,3 +99,21 @@ func (h *KendaraanHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		"message": "Kendaraan berhasil dihapus",
 	})
 }
+
+// GET /api/v1/kendaraan/{kendaraan_id}
+func (h *KendaraanHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	kendaraanID := strings.TrimPrefix(r.URL.Path, "/api/v1/kendaraan/")
+
+	k, err := h.KendaraanService.GetByID(userID, kendaraanID)
+	if err != nil {
+		if err.Error() == "akses ditolak" {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, k)
+}

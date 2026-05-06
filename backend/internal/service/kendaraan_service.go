@@ -137,3 +137,15 @@ func (s *KendaraanService) Delete(userID, kendaraanID string) error {
 
 	return s.KendaraanRepo.Delete(kendaraanID, userID)
 }
+
+// GetByID — ambil satu kendaraan by ID
+func (s *KendaraanService) GetByID(userID, kendaraanID string) (*model.Kendaraan, error) {
+	k, err := s.KendaraanRepo.FindByID(kendaraanID)
+	if err != nil {
+		return nil, err
+	}
+	if k.UserID == nil || *k.UserID != userID {
+		return nil, errors.New("akses ditolak")
+	}
+	return k, nil
+}
