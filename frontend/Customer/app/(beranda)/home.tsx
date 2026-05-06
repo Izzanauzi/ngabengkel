@@ -29,6 +29,11 @@ export default function Home() {
             onPress={() => router.push('/(auth)/login')}
             title="Login"
             color="#3B7BF6"
+          /> 
+            <Button
+            onPress={() => router.push('/(beranda)/schedule')}
+            title="Jadwal & Antrian"
+            color="#3B7BF6"
           />
         </View>
       )}
