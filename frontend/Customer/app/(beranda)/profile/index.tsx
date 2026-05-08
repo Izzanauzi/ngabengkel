@@ -27,6 +27,13 @@ const JAM_OPTIONS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
+
+export default function Profile() {
+  return (
+    <View>
+      <Text>Profile page</Text>
+    </View>
+  )
 }
 
 function getFirstDayOfMonth(year: number, month: number) {
