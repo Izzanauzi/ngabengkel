@@ -3,7 +3,7 @@
  * Disesuaikan dengan file di /backend/internal/model/user.go
  */
 
-// ── Form state ────────────────────────────────────────────────
+// ── Form state ───
 
 export interface RegisterForm {
     nama: string;
@@ -21,7 +21,7 @@ export interface RegisterForm {
     konfirmasiPassword?: string;
   }
   
-  // ── API shapes ────────────────────────────────────────────────
+  // ── API shapes ──
   
   export interface AuthUser {
     user_id: string;

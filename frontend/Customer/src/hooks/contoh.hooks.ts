@@ -9,7 +9,6 @@
  *
  * Dependensi:
  * - @tanstack/react-query  →  npm install @tanstack/react-query
- * - Pastikan QueryClientProvider sudah di-wrap di root app kamu
  */
 
  import { baseFetch } from "@/utils/baseFetch";
