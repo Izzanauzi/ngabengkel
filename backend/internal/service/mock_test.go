@@ -112,6 +112,40 @@ func (m *mockKendaraanRepo) NomorRangkaExistsExclude(nomorRangka, kendaraanID st
 	return false, nil
 }
 
+// ── mockWorkOrderRepo ────────────────────────────────────────────────────────
+
+type mockWorkOrderRepo struct {
+	getActiveByUserIDFn  func(string) ([]model.WorkOrder, error)
+	getHistoriByUserIDFn func(string) ([]model.WorkOrder, error)
+	findByIDFn           func(string) (*model.WorkOrderDetail, error)
+	getProgressByWOIDFn  func(string) ([]model.Progress, error)
+}
+
+func (m *mockWorkOrderRepo) GetActiveByUserID(userID string) ([]model.WorkOrder, error) {
+	if m.getActiveByUserIDFn != nil {
+		return m.getActiveByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockWorkOrderRepo) GetHistoriByUserID(userID string) ([]model.WorkOrder, error) {
+	if m.getHistoriByUserIDFn != nil {
+		return m.getHistoriByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockWorkOrderRepo) FindByID(woID string) (*model.WorkOrderDetail, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(woID)
+	}
+	return nil, nil
+}
+func (m *mockWorkOrderRepo) GetProgressByWOID(woID string) ([]model.Progress, error) {
+	if m.getProgressByWOIDFn != nil {
+		return m.getProgressByWOIDFn(woID)
+	}
+	return nil, nil
+}
+
 // ── mockBookingRepo ──────────────────────────────────────────────────────────
 
 type mockBookingRepo struct {
