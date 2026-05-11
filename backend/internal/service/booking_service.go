@@ -10,8 +10,8 @@ import (
 )
 
 type BookingService struct {
-	BookingRepo   *repository.BookingRepository
-	KendaraanRepo *repository.KendaraanRepository
+	BookingRepo   repository.BookingRepositoryInterface
+	KendaraanRepo repository.KendaraanRepositoryInterface
 }
 
 // GetAll — ambil semua booking milik user

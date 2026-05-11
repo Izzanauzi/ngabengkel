@@ -10,7 +10,7 @@ import (
 )
 
 type KendaraanService struct {
-	KendaraanRepo *repository.KendaraanRepository
+	KendaraanRepo repository.KendaraanRepositoryInterface
 }
 
 // GetAll — ambil semua kendaraan milik user
