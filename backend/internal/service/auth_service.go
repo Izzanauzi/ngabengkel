@@ -14,7 +14,7 @@ import (
 )
 
 type AuthService struct {
-	UserRepo *repository.UserRepository
+	UserRepo repository.UserRepositoryInterface
 }
 
 // Register — validasi + simpan user baru
