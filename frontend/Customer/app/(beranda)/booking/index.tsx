@@ -7,16 +7,19 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useCreateBooking } from "../../../src/hooks/booking.hooks";
 
-// ── Dummy Data ────────────────────────────────────────────────────────────────
+// ── Dummy kendaraan (ganti dengan useGetAllKendaraan nanti) ───────────────────
 const KENDARAAN_LIST = [
-  { id: "1", label: "Honda VariSo 150 · D 1234 ABC" },
-  { id: "2", label: "Yamaha NMAX · D 5678 XYZ" },
-  { id: "3", label: "Honda Beat · D 9999 ZZZ" },
+  { id: "kendaraan-uuid-1", label: "Honda Vario 150 · D 1234 ABC" },
+  { id: "kendaraan-uuid-2", label: "Yamaha NMAX · D 5678 XYZ" },
+  { id: "kendaraan-uuid-3", label: "Honda Beat · D 9999 ZZZ" },
 ];
 
 const STEP_LABELS = ["Kendaraan", "Jadwal", "Keluhan", "Konfirmasi"];
@@ -24,18 +27,9 @@ const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov
 const DAYS = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
 const JAM_OPTIONS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
-// export default function Profile() {
-//   return (
-//     <View>
-//       <Text>Profile page</Text>
-//     </View>
-//   )
-// }
-
 function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
@@ -49,43 +43,62 @@ export default function BookingServis() {
   const [tanggal, setTanggal] = useState("");
   const [jam, setJam] = useState("09:00");
   const [keluhan, setKeluhan] = useState("");
-
-  // Calendar state
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const [showCalendar, setShowCalendar] = useState(false);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-
-  // Time picker state
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const selectedKendaraanLabel =
-    KENDARAAN_LIST.find((k) => k.id === selectedKendaraan)?.label ?? null;
+  const { createBookingMutation } = useCreateBooking({
+    successAction: () => {
+      Alert.alert("Berhasil", "Booking servis berhasil dibuat! Tunggu konfirmasi dari bengkel.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    },
+  });
 
+  const selectedKendaraanLabel = KENDARAAN_LIST.find((k) => k.id === selectedKendaraan)?.label ?? null;
   const activeStep = !selectedKendaraan ? 0 : !tanggal ? 1 : keluhan.trim().length === 0 ? 2 : 3;
   const canSubmit = !!selectedKendaraan && !!tanggal && keluhan.trim().length > 0;
 
   const handleSelectDay = (day: number) => {
     const d = new Date(calYear, calMonth, day);
-    if (d < new Date(today.getFullYear(), today.getMonth(), today.getDate())) return;
-    setSelectedDay(day);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (d < todayStart) return;
+    setSelectedDate(d);
     setTanggal(`${String(day).padStart(2, "0")} ${MONTHS[calMonth]} ${calYear}`);
     setShowCalendar(false);
   };
+
+  const buildETARFC3339 = (): string => {
+    if (!selectedDate) return "";
+    const [h, m] = jam.split(":").map(Number);
+    const dt = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, m, 0);
+    return dt.toISOString();
+  };
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    const eta = buildETARFC3339();
+    createBookingMutation.mutate({
+      kendaraan_id: selectedKendaraan!,
+      eta,
+      keluhan_awal: keluhan.trim() || undefined,
+    });
+  };
+
+  const daysInMonth = getDaysInMonth(calYear, calMonth);
+  const firstDay = getFirstDayOfMonth(calYear, calMonth);
 
   const prevMonth = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
     else setCalMonth(calMonth - 1);
   };
-
   const nextMonth = () => {
     if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
     else setCalMonth(calMonth + 1);
   };
-
-  const daysInMonth = getDaysInMonth(calYear, calMonth);
-  const firstDay = getFirstDayOfMonth(calYear, calMonth);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -117,7 +130,6 @@ export default function BookingServis() {
           </React.Fragment>
         ))}
       </View>
-
       {activeStep === 0 && <Text style={styles.stepHint}>Pilih kendaraan terlebih dahulu</Text>}
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -126,9 +138,7 @@ export default function BookingServis() {
         <View style={styles.card}>
           <View style={styles.stepHeader}>
             <View style={[styles.stepNumBig, !!selectedKendaraan && styles.stepNumBigDone]}>
-              {selectedKendaraan
-                ? <Ionicons name="checkmark" size={14} color="#FFF" />
-                : <Text style={styles.stepNumBigText}>1</Text>}
+              {selectedKendaraan ? <Ionicons name="checkmark" size={14} color="#FFF" /> : <Text style={styles.stepNumBigText}>1</Text>}
             </View>
             <Text style={styles.stepTitle}>Pilih Kendaraan</Text>
           </View>
@@ -161,23 +171,18 @@ export default function BookingServis() {
         <View style={styles.card}>
           <View style={styles.stepHeader}>
             <View style={[styles.stepNumBig, !!tanggal && styles.stepNumBigDone]}>
-              {tanggal
-                ? <Ionicons name="checkmark" size={14} color="#FFF" />
-                : <Text style={styles.stepNumBigText}>2</Text>}
+              {tanggal ? <Ionicons name="checkmark" size={14} color="#FFF" /> : <Text style={styles.stepNumBigText}>2</Text>}
             </View>
             <Text style={styles.stepTitle}>Estimasi Waktu Kedatangan (ETA)</Text>
           </View>
 
           <View style={styles.jadwalRow}>
-            {/* Tombol pilih tanggal */}
             <TouchableOpacity style={[styles.picker, { flex: 1 }]} onPress={() => setShowCalendar(true)}>
               <Ionicons name="calendar-outline" size={16} color="#888" />
               <Text style={tanggal ? styles.pickerValue : styles.pickerPlaceholder}>
                 {tanggal || "Pilih tanggal"}
               </Text>
             </TouchableOpacity>
-
-            {/* Tombol pilih jam */}
             <TouchableOpacity style={styles.jamPicker} onPress={() => setShowTimePicker(true)}>
               <Ionicons name="time-outline" size={16} color="#1565C0" />
               <Text style={styles.jamText}>{jam}</Text>
@@ -190,9 +195,7 @@ export default function BookingServis() {
         <View style={styles.card}>
           <View style={styles.stepHeader}>
             <View style={[styles.stepNumBig, keluhan.trim().length > 0 && styles.stepNumBigDone]}>
-              {keluhan.trim().length > 0
-                ? <Ionicons name="checkmark" size={14} color="#FFF" />
-                : <Text style={styles.stepNumBigText}>3</Text>}
+              {keluhan.trim().length > 0 ? <Ionicons name="checkmark" size={14} color="#FFF" /> : <Text style={styles.stepNumBigText}>3</Text>}
             </View>
             <Text style={styles.stepTitle}>Keluhan Awal</Text>
           </View>
@@ -222,11 +225,14 @@ export default function BookingServis() {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.nextBtn, !canSubmit && styles.nextBtnDisabled]}
-          onPress={() => canSubmit && router.back()}
-          disabled={!canSubmit}
+          style={[styles.nextBtn, (!canSubmit || createBookingMutation.isPending) && styles.nextBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!canSubmit || createBookingMutation.isPending}
         >
-          <Text style={styles.nextBtnText}>Lengkapi Data Booking</Text>
+          {createBookingMutation.isPending
+            ? <ActivityIndicator color="#FFF" />
+            : <Text style={styles.nextBtnText}>Lengkapi Data Booking</Text>
+          }
         </TouchableOpacity>
       </View>
 
@@ -234,7 +240,6 @@ export default function BookingServis() {
       <Modal visible={showCalendar} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCalendar(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.calendarModal}>
-            {/* Nav bulan */}
             <View style={styles.calNav}>
               <TouchableOpacity onPress={prevMonth} style={styles.calNavBtn}>
                 <Ionicons name="chevron-back" size={18} color="#1565C0" />
@@ -245,22 +250,17 @@ export default function BookingServis() {
               </TouchableOpacity>
             </View>
 
-            {/* Header hari */}
             <View style={styles.calDayHeader}>
-              {DAYS.map((d) => (
-                <Text key={d} style={styles.calDayLabel}>{d}</Text>
-              ))}
+              {DAYS.map((d) => <Text key={d} style={styles.calDayLabel}>{d}</Text>)}
             </View>
 
-            {/* Grid tanggal */}
             <View style={styles.calGrid}>
-              {Array.from({ length: firstDay }).map((_, i) => (
-                <View key={`empty-${i}`} style={styles.calCell} />
-              ))}
+              {Array.from({ length: firstDay }).map((_, i) => <View key={`e-${i}`} style={styles.calCell} />)}
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const day = i + 1;
-                const isPast = new Date(calYear, calMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const isSelected = selectedDay === day && calMonth === today.getMonth();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const isPast = new Date(calYear, calMonth, day) < todayStart;
+                const isSelected = selectedDate?.getDate() === day && selectedDate?.getMonth() === calMonth && selectedDate?.getFullYear() === calYear;
                 return (
                   <TouchableOpacity
                     key={day}
@@ -279,7 +279,7 @@ export default function BookingServis() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Modal Pilih Jam ── */}
+      {/* ── Modal Jam ── */}
       <Modal visible={showTimePicker} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.timeModal}>
@@ -307,7 +307,6 @@ export default function BookingServis() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F5F6FA" },
-
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#1A1A2E" },
 
@@ -324,7 +323,6 @@ const styles = StyleSheet.create({
   stepHint: { textAlign: "center", fontSize: 12, color: "#BDBDBD", marginBottom: 8 },
 
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
-
   card: { backgroundColor: "#FFF", borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   stepHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   stepNumBig: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#E3F2FD", alignItems: "center", justifyContent: "center" },
@@ -357,10 +355,7 @@ const styles = StyleSheet.create({
   nextBtnDisabled: { backgroundColor: "#BDBDBD" },
   nextBtnText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 },
-
-  // Calendar
   calendarModal: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, width: "100%", maxWidth: 340 },
   calNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   calNavBtn: { padding: 6 },
@@ -375,7 +370,6 @@ const styles = StyleSheet.create({
   calCellTextSelected: { color: "#FFF", fontWeight: "700" },
   calCellTextPast: { color: "#BBB" },
 
-  // Time picker
   timeModal: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, width: "100%", maxWidth: 280 },
   timeModalTitle: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 12, textAlign: "center" },
   timeOption: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, marginBottom: 4 },

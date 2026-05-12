@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,27 +6,14 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { baseFetch } from "../../../src/utils/baseFetch";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface Slot {
-  id: string | number;
-  name?: string;
-  label?: string;
-  status: "tersedia" | "tidak_tersedia" | "diservis" | "ditutup" | string;
-}
-
-interface ScheduleResponse {
-  slots: Slot[];
-  jumlah_antrian: number;
-}
+import { router } from "expo-router";
+import { useGetSchedule } from "../../../src/hooks/schedule.hooks";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const ESTIMASI_PER_KENDARAAN = 9; // menit
+const ESTIMASI_PER_KENDARAAN = 9;
 
 const getSlotColor = (status: string) => {
   switch (status) {
@@ -36,7 +23,6 @@ const getSlotColor = (status: string) => {
       return { bg: "#FFEBEE", border: "#E53935", text: "#C62828" };
     case "ditutup":
     case "tidak_tersedia":
-      return { bg: "#F5F5F5", border: "#BDBDBD", text: "#757575" };
     default:
       return { bg: "#F5F5F5", border: "#BDBDBD", text: "#757575" };
   }
@@ -44,83 +30,21 @@ const getSlotColor = (status: string) => {
 
 const getSlotLabel = (status: string) => {
   switch (status) {
-    case "tersedia":
-      return "Tersedia";
-    case "diservis":
-      return "Diservis";
-    case "ditutup":
-      return "Ditutup";
-    case "tidak_tersedia":
-      return "Tidak Tersedia";
-    default:
-      return status;
+    case "tersedia": return "Tersedia";
+    case "diservis": return "Diservis";
+    case "ditutup": return "Ditutup";
+    case "tidak_tersedia": return "Tidak Tersedia";
+    default: return status;
   }
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function JadwalAntrian() {
-  const [data, setData] = useState<ScheduleResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(false);
+  const { slots, jumlahAntrian, isLoading, isError, refetch } = useGetSchedule();
 
-  const fetchSchedule = useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      setError(null);
-      setIsOffline(false);
+  const estimasi = jumlahAntrian * ESTIMASI_PER_KENDARAAN;
 
-      const result = await baseFetch<ScheduleResponse>({
-        url: "/schedule",
-        method: "GET",
-        options: { showError: false },
-      });
 
-      if (result) setData(result);
-    } catch (err: any) {
-      const isNetwork =
-        err?.message?.includes("Network") || err?.code === "ECONNABORTED";
-      if (isNetwork) {
-        setIsOffline(true);
-      } else {
-        setError("Gagal memuat data. Silakan coba lagi.");
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSchedule();
-  }, [fetchSchedule]);
-
-  const estimasi = data ? data.jumlah_antrian * ESTIMASI_PER_KENDARAAN : 0;
-
-  // ── Loading ────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1565C0" />
-        <Text style={styles.loadingText}>Memuat data...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Error ──────────────────────────────────────────────────────────────────
-  if (error && !data) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <Ionicons name="cloud-offline-outline" size={48} color="#BDBDBD" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSchedule()}>
-          <Text style={styles.retryText}>Coba Lagi</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
 
   // ── Main ───────────────────────────────────────────────────────────────────
   return (
@@ -128,30 +52,37 @@ export default function JadwalAntrian() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => fetchSchedule(true)}
-            colors={["#1565C0"]}
-          />
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} colors={["#1565C0"]} />
         }
       >
         {/* Header */}
         <View style={styles.header}>
+          {/* <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          </TouchableOpacity> */}
           <Text style={styles.headerTitle}>Jadwal & Antrian</Text>
+          <View style={{ width: 22 }} />
         </View>
 
-        {/* Offline Banner */}
-        {isOffline && (
+        {/* Offline Banner - hanya muncul saat error koneksi */}
+        {isError && (
           <View style={styles.offlineBanner}>
             <Ionicons name="warning-outline" size={16} color="#F57F17" />
             <Text style={styles.offlineText}>
-              Data mungkin tidak terkini. Anda sedang menggunakan data cache
-              karena koneksi tidak tersedia.
+              Data mungkin tidak terkini. Anda sedang menggunakan data cache karena koneksi tidak tersedia.
             </Text>
           </View>
         )}
 
-        {/* Slot Section */}
+        {/* Loading overlay tipis */}
+        {isLoading && (
+          <View style={styles.loadingBar}>
+            <ActivityIndicator size="small" color="#1565C0" />
+            <Text style={styles.loadingText}>Memperbarui data...</Text>
+          </View>
+        )}
+
+        {/* Status Slot Bengkel */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Status Slot Bengkel</Text>
           <ScrollView
@@ -159,16 +90,13 @@ export default function JadwalAntrian() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.slotRow}
           >
-            {data?.slots && data.slots.length > 0 ? (
-              data.slots.map((slot, index) => {
+            {slots.length > 0 ? (
+              slots.map((slot, index) => {
                 const colors = getSlotColor(slot.status);
                 return (
                   <View
                     key={slot.id ?? index}
-                    style={[
-                      styles.slotCard,
-                      { backgroundColor: colors.bg, borderColor: colors.border },
-                    ]}
+                    style={[styles.slotCard, { backgroundColor: colors.bg, borderColor: colors.border }]}
                   >
                     <Text style={[styles.slotName, { color: colors.text }]}>
                       {slot.name ?? slot.label ?? `S${String(index + 1).padStart(2, "0")}`}
@@ -185,31 +113,26 @@ export default function JadwalAntrian() {
           </ScrollView>
         </View>
 
-        {/* Antrian Section */}
+        {/* Antrian Saat Ini */}
         <View style={[styles.card, styles.antrianCard]}>
           <Text style={styles.cardTitle}>Antrian Saat Ini</Text>
-          <Text style={styles.antrianNumber}>{data?.jumlah_antrian ?? 0}</Text>
+          <Text style={styles.antrianNumber}>{jumlahAntrian}</Text>
           <Text style={styles.antrianLabel}>kendaraan Mengantre</Text>
-          <Text style={styles.estimasiText}>
-            Estimasi waktu tunggu: ±{estimasi} Menit
-          </Text>
+          <Text style={styles.estimasiText}>Estimasi waktu tunggu: ±{estimasi} Menit</Text>
 
-          {/* Antrian dots */}
-          {data && data.jumlah_antrian > 0 && (
+          {jumlahAntrian > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.dotsRow}
             >
-              {Array.from({ length: Math.min(data.jumlah_antrian, 20) }).map(
-                (_, i) => (
-                  <View key={i} style={styles.dot}>
-                    <Text style={styles.dotText}>{i + 1}</Text>
-                  </View>
-                )
-              )}
-              {data.jumlah_antrian > 20 && (
-                <Text style={styles.moreDots}>+{data.jumlah_antrian - 20}</Text>
+              {Array.from({ length: Math.min(jumlahAntrian, 20) }).map((_, i) => (
+                <View key={i} style={styles.dot}>
+                  <Text style={styles.dotText}>{i + 1}</Text>
+                </View>
+              ))}
+              {jumlahAntrian > 20 && (
+                <Text style={styles.moreDots}>+{jumlahAntrian - 20}</Text>
               )}
             </ScrollView>
           )}
@@ -237,11 +160,15 @@ export default function JadwalAntrian() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F5F6FA" },
-  scroll: { padding: 16, paddingBottom: 32 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 32 },
 
-  header: { marginBottom: 16 },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: "#1A1A2E" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#1A1A2E" },
 
   offlineBanner: {
     flexDirection: "row",
@@ -267,12 +194,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
-  },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: "#333", marginBottom: 12 },
 
   slotRow: { gap: 10, paddingBottom: 4 },
   slotCard: {
@@ -289,22 +211,14 @@ const styles = StyleSheet.create({
   emptySlot: { color: "#BDBDBD", fontSize: 13 },
 
   antrianCard: { alignItems: "center" },
-  antrianNumber: {
-    fontSize: 64,
-    fontWeight: "800",
-    color: "#1565C0",
-    lineHeight: 72,
-  },
+  antrianNumber: { fontSize: 64, fontWeight: "800", color: "#1565C0", lineHeight: 72 },
   antrianLabel: { fontSize: 14, color: "#555", marginBottom: 4 },
   estimasiText: { fontSize: 13, color: "#888", marginBottom: 12 },
   dotsRow: { gap: 8, paddingVertical: 4 },
   dot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: "#1565C0",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
   dotText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
   moreDots: { color: "#888", fontSize: 13, alignSelf: "center" },
@@ -313,13 +227,13 @@ const styles = StyleSheet.create({
   legendDot: { width: 12, height: 12, borderRadius: 6 },
   legendText: { fontSize: 13, color: "#444" },
 
-  loadingText: { color: "#888", marginTop: 8 },
-  errorText: { color: "#888", textAlign: "center", marginHorizontal: 32 },
-  retryBtn: {
-    backgroundColor: "#1565C0",
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 8,
+  loadingBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+    marginBottom: 8,
   },
-  retryText: { color: "#FFF", fontWeight: "600" },
+  loadingText: { color: "#888", fontSize: 12 },
 });
