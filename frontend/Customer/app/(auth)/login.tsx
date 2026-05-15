@@ -44,8 +44,13 @@ export default function LoginPage() {
         },
       });
 
-      if (data?.token) {
-        await login(data.token);
+      // 💡 PERBAIKAN: Cek apakah token dan user ada, lalu kirim keduanya!
+      if (data?.token && data?.user) {
+        await login(data.token, data.user);
+      } else if (data?.token) {
+        // Fallback (jaga-jaga jika backend belum mengembalikan data user)
+        console.warn("Peringatan: Data user tidak ditemukan dari response backend!");
+        await login(data.token, data.user);
       }
     } catch (error: any) {
       // error message 

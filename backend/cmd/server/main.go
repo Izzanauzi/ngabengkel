@@ -23,13 +23,27 @@ func main() {
 	// 3. Inisialisasi repository
 	userRepo := &repository.UserRepository{DB: db}
 	slotRepo := &repository.SlotRepository{DB: db}
+	kendaraanRepo := &repository.KendaraanRepository{DB: db}
+	bookingRepo := &repository.BookingRepository{DB: db}
+	workOrderRepo := &repository.WorkOrderRepository{DB: db}
 
 	// 4. Inisialisasi service
 	authService := &service.AuthService{UserRepo: userRepo}
+	kendaraanService := &service.KendaraanService{KendaraanRepo: kendaraanRepo}
+	bookingService := &service.BookingService{
+		BookingRepo:   bookingRepo,
+		KendaraanRepo: kendaraanRepo,
+	}
+	workOrderService := &service.WorkOrderService{WorkOrderRepo: workOrderRepo}
 
 	// 5. Inisialisasi handler
 	authHandler := &handler.AuthHandler{AuthService: authService}
 	scheduleHandler := &handler.ScheduleHandler{SlotRepo: slotRepo}
+	kendaraanHandler := &handler.KendaraanHandler{KendaraanService: kendaraanService}
+	bookingHandler := &handler.BookingHandler{BookingService: bookingService}
+	workOrderHandler := &handler.WorkOrderHandler{WorkOrderService: workOrderService}
+
+	// Booking routes
 
 	// 6. Daftarkan semua route
 	mux := http.NewServeMux()
@@ -44,10 +58,30 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
+
+	// Schedule routes — tidak butuh token
 	mux.HandleFunc("GET /api/v1/schedule", scheduleHandler.GetSchedule)
 
 	// Auth routes — butuh token (pakai middleware)
 	mux.HandleFunc("GET /api/v1/auth/me", middleware.RequireAuth(authHandler.Me))
+
+	// Kendaraan routes — butuh token
+	mux.HandleFunc("GET /api/v1/kendaraan", middleware.RequireAuth(kendaraanHandler.GetAll))
+	mux.HandleFunc("GET /api/v1/kendaraan/{id}", middleware.RequireAuth(kendaraanHandler.GetByID))
+	mux.HandleFunc("POST /api/v1/kendaraan", middleware.RequireAuth(kendaraanHandler.Create))
+	mux.HandleFunc("PUT /api/v1/kendaraan/{id}", middleware.RequireAuth(kendaraanHandler.Update))
+	mux.HandleFunc("DELETE /api/v1/kendaraan/{id}", middleware.RequireAuth(kendaraanHandler.Delete))
+
+	// Booking routes — butuh token
+	mux.HandleFunc("GET /api/v1/bookings", middleware.RequireAuth(bookingHandler.GetAll))
+	mux.HandleFunc("POST /api/v1/bookings", middleware.RequireAuth(bookingHandler.Create))
+	mux.HandleFunc("DELETE /api/v1/bookings/{id}", middleware.RequireAuth(bookingHandler.Cancel))
+
+	// Work Order routes — butuh token
+	mux.HandleFunc("GET /api/v1/work-orders", middleware.RequireAuth(workOrderHandler.GetAll))
+	mux.HandleFunc("GET /api/v1/work-orders/{id}", middleware.RequireAuth(workOrderHandler.GetByID))
+	mux.HandleFunc("POST /api/v1/work-orders/{id}/approve-action", middleware.RequireAuth(workOrderHandler.ApproveAction))
+	mux.HandleFunc("POST /api/v1/work-orders/{id}/reject-action", middleware.RequireAuth(workOrderHandler.RejectAction))
 
 	// 7. Nyalakan server
 	addr := ":" + cfg.AppPort

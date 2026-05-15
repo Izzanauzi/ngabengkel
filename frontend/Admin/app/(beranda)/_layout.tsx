@@ -1,6 +1,7 @@
 import { Text } from 'react-native'
 import { Tabs } from 'expo-router'
 
+
 export default function BerandaLayout() {
   return (
     <Tabs
@@ -38,6 +39,7 @@ export default function BerandaLayout() {
           tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
         }}
       />
+
     </Tabs>
   )
 }

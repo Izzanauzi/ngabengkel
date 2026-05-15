@@ -14,7 +14,7 @@ import (
 )
 
 type AuthService struct {
-	UserRepo *repository.UserRepository
+	UserRepo repository.UserRepositoryInterface
 }
 
 // Register — validasi + simpan user baru
@@ -65,7 +65,7 @@ func (s *AuthService) Register(req model.RegisterRequest) (*model.AuthResponse, 
 		UserID:   uuid.New().String(),
 		Nama:     req.Nama,
 		Email:    req.Email,
-		Telepon:  req.Telepon,
+		Telepon:  &req.Telepon,
 		Password: string(hashedPassword),
 		Role:     "customer",
 	}
