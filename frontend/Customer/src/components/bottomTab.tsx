@@ -2,7 +2,6 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 export default function BottomTab({ state, descriptors, navigation }: any) {
-  console.log("Custom Tab Kepanggil");
 
   return (
     <View

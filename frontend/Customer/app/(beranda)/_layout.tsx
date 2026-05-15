@@ -5,7 +5,7 @@ import BottomTab from '../../src/components/bottomTab'
 export default function BerandaLayout() {
   return (
     <Tabs
-      tabBar={(props) => <BottomTab {...props} />}
+      tabBar={(props) => <BottomTab {...props} />} 
       screenOptions={{
         tabBarActiveTintColor: '#3B7BF6',
         tabBarInactiveTintColor: '#999',
