@@ -13,7 +13,7 @@ export function useGetAllBookings() {
     queryFn: () =>
       baseFetch<Booking[]>({
         method: "GET",
-        url: "/api/v1/bookings",
+        url: "/bookings",
         options: { showError: false },
       }),
 
@@ -46,7 +46,7 @@ export function useCreateBooking({ successAction }: UseCreateBookingProps) {
     mutationFn: (payload: BookingRequest) =>
       baseFetch<Booking>({
         method: "POST",
-        url: "/api/v1/bookings",
+        url: "/bookings",
         payload,
         options: { showError: false },
       }),
@@ -77,7 +77,7 @@ export function useCancelBooking({ successAction }: UseCancelBookingProps) {
     mutationFn: (bookingId: string) =>
       baseFetch<{ message: string }>({
         method: "DELETE",
-        url: `/api/v1/bookings/${bookingId}`,
+        url: `/bookings/${bookingId}`,
         options: { showError: false },
       }),
 
