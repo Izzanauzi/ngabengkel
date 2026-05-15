@@ -1,9 +1,14 @@
 import { Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useAuth } from '../../contexts/auth.context';
+
 
 export default function LogoutButton() {
+
+  const { logout } = useAuth();
+
   return (
-    <TouchableOpacity style={styles.logoutButton}>
+    <TouchableOpacity style={styles.logoutButton} onPress={logout}>
       <Ionicons name="log-out-outline" size={20} color="#fff" />
       <Text style={styles.logoutText}>Keluar dari Akun</Text>
     </TouchableOpacity>
