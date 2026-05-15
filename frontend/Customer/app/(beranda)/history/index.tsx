@@ -5,8 +5,8 @@ import HistoryCard from '../../../src/components/history/HistoryCard'
 import EmptyState from '../../../src/components/history/EmptyState'
 
 export default function HistoryScreen() {
-  const isLogin = true // ubah sesuai kondisi
-  const hasData = true // simulasi ada data / tidak
+  const isLogin = false // ubah sesuai kondisi
+  const hasData = false // simulasi ada data / tidak
 
   // Data dummy
   const data = [

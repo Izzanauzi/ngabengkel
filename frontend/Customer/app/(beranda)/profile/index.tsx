@@ -1,20 +1,35 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import { useCallback } from 'react'
+
+// Import Auth Context & Hooks
+import { useAuth } from '../../../src/contexts/auth.context' 
+import { useGetAllKendaraan } from '../../../src/hooks/kendaraan.hooks'
+
 
 // Import Komponen Modular
 import ProfileCard from '../../../src/components/profile/ProfileCard'
 import VehicleCard from '../../../src/components/profile/VehicleCard'
 import MenuList from '../../../src/components/profile/MenuList'
 import LogoutButton from '../../../src/components/profile/LogoutButton'
+import { Kendaraan } from '../../../src/@types/kendaraan.types'
 
 export default function ProfileScreen() {
-  const isLogin = true // ubah false untuk lihat "Ketuk untuk masuk"
+  const router = useRouter();
+  const { token, user } = useAuth();
+  const isLogin = !!token;
 
-  // Data dummy kendaraan untuk dirender secara dinamis
-  const myVehicles = [
-    { id: '1', name: 'Honda Vario 150', year: '2022', type: '4-tak', plate: 'D 1234 ABC' },
-    { id: '2', name: 'Yamaha NMAX 155', year: '2021', type: '4-tak', plate: 'B 5678 XYZ' },
-  ]
+  // 1. Memanggil hook kendaraan untuk mengambil data asli dari backend
+  const { kendaraanList, isLoading } = useGetAllKendaraan();
+
+  const handlePressDetail = useCallback((id: string) => {
+    router.push(`/(beranda)/kendaraan/${id}`);
+  }, [router]);
+  
+  const handlePressAdd = useCallback(() => {
+    router.push("/(beranda)/kendaraan/create");
+  }, [router]);
 
   return (
     <ScrollView style={styles.container}>
@@ -25,8 +40,12 @@ export default function ProfileScreen() {
         <Ionicons name="create-outline" size={22} color="#3B7BF6" />
       </View>
 
-      {/* Panggil Komponen ProfileCard */}
-      <ProfileCard isLogin={isLogin} />
+      {/* 2. Panggil Komponen ProfileCard dan lemparkan data user serta jumlah kendaraan */}
+      <ProfileCard 
+        isLogin={isLogin} 
+        userData={user} 
+        vehicleCount={kendaraanList?.length || 0} 
+      />
 
       {/* ===== KONTEN SETELAH LOGIN ===== */}
       {isLogin && (
@@ -34,25 +53,29 @@ export default function ProfileScreen() {
           {/* KENDARAAN HEADER */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Kendaraan Saya</Text>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/(beranda)/kendaraan')}>
               <Text style={styles.link}>Lihat semua </Text>
               <Ionicons name="chevron-forward" size={14} color="#3B7BF6" />
             </TouchableOpacity>
           </View>
 
-          {/* LIST KENDARAAN - Menggunakan Map dari data dummy */}
-          {myVehicles.map((vehicle) => (
-            <VehicleCard 
-              key={vehicle.id}
-              name={vehicle.name}
-              year={vehicle.year}
-              type={vehicle.type}
-              plate={vehicle.plate}
-            />
-          ))}
+          {/* 3. LIST KENDARAAN - Menggunakan data dari backend dengan indikator loading */}
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#3B7BF6" style={{ marginVertical: 20 }} />
+          ) : (
+            kendaraanList.map((vehicle: Kendaraan) => (
+              <VehicleCard 
+                key={vehicle.kendaraan_id}
+                name={`${vehicle.merek} ${vehicle.model}`} // Menggabungkan merek dan model
+                year={vehicle.tahun.toString()}
+                type={vehicle.warna || 'Standar'} // Menggunakan warna sebagai tipe, beri fallback jika kosong
+                plate={vehicle.nomor_polisi}
+              />
+            ))
+          )}
 
           {/* TOMBOL TAMBAH KENDARAAN */}
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity style={styles.addButton} onPress={handlePressAdd}>
             <Text style={styles.addText}>+ Tambah Kendaraan</Text>
           </TouchableOpacity>
 

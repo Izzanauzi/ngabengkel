@@ -2,6 +2,9 @@ import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 export default function MenuList() {
+
+  
+
   return (
     <View style={styles.menuContainer}>
       <View style={styles.menuItem}>
