@@ -7,6 +7,48 @@ import (
 	"github.com/ngabengkel/backend/internal/service"
 )
 
+// POST /api/v1/work-orders/{id}/approve-action
+func (h *WorkOrderHandler) ApproveAction(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	woID := r.PathValue("id")
+
+	if err := h.WorkOrderService.ApproveAction(userID, woID); err != nil {
+		switch err.Error() {
+		case "akses ditolak":
+			writeError(w, http.StatusForbidden, err.Error())
+		case "work order tidak ditemukan":
+			writeError(w, http.StatusNotFound, err.Error())
+		case "work order tidak dalam status menunggu persetujuan":
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, "Gagal menyetujui tindakan")
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Tindakan disetujui, work order dilanjutkan"})
+}
+
+// POST /api/v1/work-orders/{id}/reject-action
+func (h *WorkOrderHandler) RejectAction(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	woID := r.PathValue("id")
+
+	if err := h.WorkOrderService.RejectAction(userID, woID); err != nil {
+		switch err.Error() {
+		case "akses ditolak":
+			writeError(w, http.StatusForbidden, err.Error())
+		case "work order tidak ditemukan":
+			writeError(w, http.StatusNotFound, err.Error())
+		case "work order tidak dalam status menunggu persetujuan":
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, "Gagal menolak tindakan")
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Tindakan ditolak"})
+}
+
 type WorkOrderHandler struct {
 	WorkOrderService *service.WorkOrderService
 }

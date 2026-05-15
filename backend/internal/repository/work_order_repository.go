@@ -104,6 +104,15 @@ func (r *WorkOrderRepository) FindByID(woID string) (*model.WorkOrderDetail, err
 	return &model.WorkOrderDetail{WorkOrder: wo, Progress: []model.Progress{}}, nil
 }
 
+// UpdateStatus — ubah status WO
+func (r *WorkOrderRepository) UpdateStatus(woID, status string) error {
+	_, err := r.DB.Exec(
+		`UPDATE ngabengkel.work_orders SET status = $1 WHERE wo_id = $2`,
+		status, woID,
+	)
+	return err
+}
+
 // GetProgressByWOID — semua progress untuk satu WO, urut dari terlama
 func (r *WorkOrderRepository) GetProgressByWOID(woID string) ([]model.Progress, error) {
 	query := `

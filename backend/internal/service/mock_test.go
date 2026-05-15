@@ -119,6 +119,7 @@ type mockWorkOrderRepo struct {
 	getHistoriByUserIDFn func(string) ([]model.WorkOrder, error)
 	findByIDFn           func(string) (*model.WorkOrderDetail, error)
 	getProgressByWOIDFn  func(string) ([]model.Progress, error)
+	updateStatusFn       func(string, string) error
 }
 
 func (m *mockWorkOrderRepo) GetActiveByUserID(userID string) ([]model.WorkOrder, error) {
@@ -144,6 +145,12 @@ func (m *mockWorkOrderRepo) GetProgressByWOID(woID string) ([]model.Progress, er
 		return m.getProgressByWOIDFn(woID)
 	}
 	return nil, nil
+}
+func (m *mockWorkOrderRepo) UpdateStatus(woID, status string) error {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(woID, status)
+	}
+	return nil
 }
 
 // ── mockBookingRepo ──────────────────────────────────────────────────────────
