@@ -1,27 +1,63 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useAuth } from '../../contexts/auth.context';
+import { useRouter } from 'expo-router/build/exports';
 
-interface ProfileCardProps {
-  isLogin: boolean;
+// 1. Definisikan tipe data User yang akan diterima dari halaman profil
+export interface UserData {
+  user_id: string;
+  nama: string;
+  email: string;
+  telepon?: string;
+  role: string;
 }
 
-export default function ProfileCard({ isLogin }: ProfileCardProps) {
+// 2. Tambahkan userData ke dalam Properties (Props)
+interface ProfileCardProps {
+  isLogin: boolean;
+  userData?: UserData | null;
+  vehicleCount?: number; 
+}
+
+export default function ProfileCard({ isLogin, userData, vehicleCount = 0 }: ProfileCardProps) {
+
+    const router = useRouter();
+    // const [isLoggedIn, setIsLoggedIn] = useState(false);
+    // const handleLogout = () => setIsLoggedIn(false);
+    // const handleLogin = () => setIsLoggedIn(true);
+    const { token } = useAuth();
+  
+  // 3. Fungsi pembantu untuk membuat inisial dinamis
+  const getInitials = (name?: string) => {
+    if (!name) return 'U'; // Huruf U untuk User (jika nama kosong)
+    const names = name.trim().split(' ');
+    let initials = names[0].substring(0, 1).toUpperCase();
+    if (names.length > 1) {
+      initials += names[names.length - 1].substring(0, 1).toUpperCase();
+    }
+    return initials;
+  };
+
   return (
     <View style={styles.card}>
-      {isLogin ? (
+      {/* 4. Pastikan isLogin true DAN data userData tersedia */}
+      {isLogin && userData ? (
         <>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>BS</Text>
+              {/* Tampilkan inisial secara dinamis */}
+              <Text style={styles.avatarText}>{getInitials(userData.nama)}</Text>
             </View>
 
             <View>
-              <Text style={styles.name}>Budi Santoso</Text>
-              <Text style={styles.subText}>budi@gmail.com</Text>
-              <Text style={styles.subText}>08123456789</Text>
+              {/* Tampilkan data dinamis dengan fallback jika kosong */}
+              <Text style={styles.name}>{userData.nama || 'Pengguna'}</Text>
+              <Text style={styles.subText}>{userData.email || 'Email tidak tersedia'}</Text>
+              <Text style={styles.subText}>{userData.telepon || '-'}</Text>
             </View>
           </View>
 
+          {/* Bagian ini masih menggunakan data statis/dummy untuk saat ini */}
           <View style={styles.stats}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>8</Text>
@@ -31,7 +67,7 @@ export default function ProfileCard({ isLogin }: ProfileCardProps) {
             <View style={styles.statDivider} />
 
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>2</Text>
+              <Text style={styles.statNumber}>{vehicleCount}</Text>
               <Text style={styles.statLabel}>Kendaraan</Text>
             </View>
 
@@ -44,10 +80,10 @@ export default function ProfileCard({ isLogin }: ProfileCardProps) {
           </View>
         </>
       ) : (
-        <TouchableOpacity style={styles.loginBox}>
-          <Ionicons name="person-circle-outline" size={60} color="#3B7BF6" />
-          <Text style={styles.loginText}>Ketuk untuk masuk</Text>
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.loginBox} onPress={() => router.push('/(auth)/login')}>
+            <Ionicons name="person-circle-outline" size={60} color="#3B7BF6" />
+            <Text style={[styles.loginText, { textDecorationLine: 'underline' }]}>Ketuk untuk masuk</Text>
+          </TouchableOpacity>
       )}
     </View>
   )

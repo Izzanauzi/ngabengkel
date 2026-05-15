@@ -7,4 +7,5 @@ type WorkOrderRepositoryInterface interface {
 	GetHistoriByUserID(userID string) ([]model.WorkOrder, error)
 	FindByID(woID string) (*model.WorkOrderDetail, error)
 	GetProgressByWOID(woID string) ([]model.Progress, error)
+	UpdateStatus(woID, status string) error
 }
