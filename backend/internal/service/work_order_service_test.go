@@ -134,3 +134,131 @@ func TestWorkOrderService_GetByID_BukanMilikUser(t *testing.T) {
 	_, err := svc.GetByID("u-1", "wo-1")
 	assertError(t, err, "akses ditolak")
 }
+
+// ── ApproveAction ─────────────────────────────────────────────────────────────
+
+func TestWorkOrderService_ApproveAction_HappyPath(t *testing.T) {
+	var capturedStatus string
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-1", Status: "menunggu_persetujuan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+		updateStatusFn: func(_ string, status string) error {
+			capturedStatus = status
+			return nil
+		},
+	}}
+
+	if err := svc.ApproveAction("u-1", "wo-1"); err != nil {
+		t.Fatalf("tidak expect error, got: %v", err)
+	}
+	if capturedStatus != "sedang_dikerjakan" {
+		t.Errorf("expect status sedang_dikerjakan, got %s", capturedStatus)
+	}
+}
+
+func TestWorkOrderService_ApproveAction_WOTidakDitemukan(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return nil, errors.New("work order tidak ditemukan")
+		},
+	}}
+
+	err := svc.ApproveAction("u-1", "wo-99")
+	assertError(t, err, "work order tidak ditemukan")
+}
+
+func TestWorkOrderService_ApproveAction_BukanMilikUser(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-other", Status: "menunggu_persetujuan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+	}}
+
+	err := svc.ApproveAction("u-1", "wo-1")
+	assertError(t, err, "akses ditolak")
+}
+
+func TestWorkOrderService_ApproveAction_StatusTidakValid(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-1", Status: "sedang_dikerjakan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+	}}
+
+	err := svc.ApproveAction("u-1", "wo-1")
+	assertError(t, err, "work order tidak dalam status menunggu persetujuan")
+}
+
+// ── RejectAction ──────────────────────────────────────────────────────────────
+
+func TestWorkOrderService_RejectAction_HappyPath(t *testing.T) {
+	var capturedStatus string
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-1", Status: "menunggu_persetujuan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+		updateStatusFn: func(_ string, status string) error {
+			capturedStatus = status
+			return nil
+		},
+	}}
+
+	if err := svc.RejectAction("u-1", "wo-1"); err != nil {
+		t.Fatalf("tidak expect error, got: %v", err)
+	}
+	if capturedStatus != "tindakan_ditolak" {
+		t.Errorf("expect status tindakan_ditolak, got %s", capturedStatus)
+	}
+}
+
+func TestWorkOrderService_RejectAction_WOTidakDitemukan(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return nil, errors.New("work order tidak ditemukan")
+		},
+	}}
+
+	err := svc.RejectAction("u-1", "wo-99")
+	assertError(t, err, "work order tidak ditemukan")
+}
+
+func TestWorkOrderService_RejectAction_BukanMilikUser(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-other", Status: "menunggu_persetujuan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+	}}
+
+	err := svc.RejectAction("u-1", "wo-1")
+	assertError(t, err, "akses ditolak")
+}
+
+func TestWorkOrderService_RejectAction_StatusTidakValid(t *testing.T) {
+	svc := &WorkOrderService{WorkOrderRepo: &mockWorkOrderRepo{
+		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
+			return &model.WorkOrderDetail{
+				WorkOrder: model.WorkOrder{WoID: "wo-1", UserID: "u-1", Status: "sedang_dikerjakan"},
+				Progress:  []model.Progress{},
+			}, nil
+		},
+	}}
+
+	err := svc.RejectAction("u-1", "wo-1")
+	assertError(t, err, "work order tidak dalam status menunggu persetujuan")
+}

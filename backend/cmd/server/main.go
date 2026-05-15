@@ -80,6 +80,8 @@ func main() {
 	// Work Order routes — butuh token
 	mux.HandleFunc("GET /api/v1/work-orders", middleware.RequireAuth(workOrderHandler.GetAll))
 	mux.HandleFunc("GET /api/v1/work-orders/{id}", middleware.RequireAuth(workOrderHandler.GetByID))
+	mux.HandleFunc("POST /api/v1/work-orders/{id}/approve-action", middleware.RequireAuth(workOrderHandler.ApproveAction))
+	mux.HandleFunc("POST /api/v1/work-orders/{id}/reject-action", middleware.RequireAuth(workOrderHandler.RejectAction))
 
 	// 7. Nyalakan server
 	addr := ":" + cfg.AppPort
