@@ -1,10 +1,3 @@
-/**
- * @types/auth.types.ts
- * Disesuaikan dengan file di /backend/internal/model/user.go
- */
-
-// ── Form state ───
-
 export interface RegisterForm {
     nama: string;
     email: string;
@@ -21,8 +14,6 @@ export interface RegisterForm {
     konfirmasiPassword?: string;
   }
   
-  // ── API shapes ──
-  
   export interface AuthUser {
     user_id: string;
     nama: string;
@@ -31,7 +22,6 @@ export interface RegisterForm {
     password: string;
     role: "customer" | "admin" ;
     created_at?: string;
-    
   }
   
   export interface AuthResponse {
