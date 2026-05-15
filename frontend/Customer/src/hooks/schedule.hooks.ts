@@ -12,7 +12,7 @@ export function useGetSchedule() {
     queryFn: () =>
       baseFetch<ScheduleResponse>({
         method: "GET",
-        url: "/api/v1/schedule",
+        url: "/schedule",
         options: { showError: false },
       }),
 
