@@ -1,11 +1,4 @@
-/**
- * app/(beranda)/kendaraan/index.tsx
- *
- * Screen list semua kendaraan milik user.
- * Tipis — hanya rakit komponen + hubungkan hooks.
- */
 import RequireAuth from '../../../src/components/requireAuth';
-//  import RequireAuth from '../../../src/components/RequireAuth'
  import React, { useCallback } from "react";
  import {
    ActivityIndicator,
@@ -22,23 +15,23 @@ import RequireAuth from '../../../src/components/requireAuth';
  import { Kendaraan } from "../../../src/@types/kendaraan.types";
  
  export default function KendaraanScreen() {
-   // ── Data ──────────────────────────────────────────────────
+   // Data
    const { kendaraanList, isLoading, refetch } = useGetAllKendaraan();
  
-   // ── Mutation ──────────────────────────────────────────────
+   // Mutation
    const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
      successAction: () => refetch(),
      onError: (message) => Alert.alert("Gagal", message),
    });
  
-   // ── Handlers ──────────────────────────────────────────────
+   // Handlers
    const handlePressDetail = useCallback((id: string) => {
      router.push(`/(beranda)/kendaraan/${id}`);
    }, []);
  
    const handlePressEdit = useCallback((id: string) => {
-     router.push(`/(beranda)/kendaraan/${id}/edit`);
-   }, []);
+    router.push(`/(beranda)/kendaraan/${id}/edit`) 
+  }, [])
  
    const handlePressDelete = useCallback(
      (id: string) => {
@@ -74,7 +67,7 @@ import RequireAuth from '../../../src/components/requireAuth';
      [handlePressDetail, handlePressEdit, handlePressDelete]
    );
  
-   // ── Loading ───────────────────────────────────────────────
+   // Loading
    if (isLoading) {
      return (
        <View style={styles.center}>
@@ -83,7 +76,7 @@ import RequireAuth from '../../../src/components/requireAuth';
      );
    }
  
-   // ── Empty state ───────────────────────────────────────────
+   // Empty state
    if (kendaraanList.length === 0) {
      return (
        <View style={styles.center}>
@@ -95,7 +88,7 @@ import RequireAuth from '../../../src/components/requireAuth';
      );
    }
  
-   // ── Main ──────────────────────────────────────────────────
+   // Main 
    return (
      <View style={styles.container}>
        <FlatList

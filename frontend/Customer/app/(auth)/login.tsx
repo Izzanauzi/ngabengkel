@@ -1,279 +1,154 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import { useAuth } from "../../src/contexts/auth.context";
-import { baseFetch } from "../../src/utils/baseFetch";
-import { LoginResponse } from "../../src/@types/api";
-
-const CarIcon = () => (
-  <Text style={{ fontSize: 28 }}>🚗</Text>
-);
+import { useLoginMutation } from "../../src/hooks/auth.hooks";
 
 export default function LoginPage() {
-  const [credentials, setCredentials] = useState({ email: "", password: "" });
-  const [internalLoading, setInternalLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState({ email: "", password: "" })
+  const [showPassword, setShowPassword] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [focusedField, setFocusedField] = useState<string | null>(null) // ← per-field
 
-  const { login } = useAuth();
+  const { loginMutation } = useLoginMutation({ onError: setErrorMessage })
 
-  const handleChange = (name: string, value: string) => {
-    setCredentials({ ...credentials, [name]: value });
-    if (errorMessage) setErrorMessage(null); // Reset error saat user mengetik
-  };
+  const handleChange = useCallback((name: string, value: string) => {
+    setCredentials(prev => ({ ...prev, [name]: value }))
+    setErrorMessage(null)
+  }, [])
 
-  const handleLogin = async () => {
-    setInternalLoading(true);
-    setErrorMessage(null);
-    try {
-      const data = await baseFetch<LoginResponse>({
-        url: "/auth/login",
-        method: "POST",
-        payload: credentials,
-        options: {
-          showError: false, 
-        },
-      });
+  const handleLogin = useCallback(() => {
+    loginMutation.mutate(credentials)
+  }, [credentials, loginMutation])
 
-      // 💡 PERBAIKAN: Cek apakah token dan user ada, lalu kirim keduanya!
-      if (data?.token && data?.user) {
-        await login(data.token, data.user);
-      } else if (data?.token) {
-        // Fallback (jaga-jaga jika backend belum mengembalikan data user)
-        console.warn("Peringatan: Data user tidak ditemukan dari response backend!");
-        await login(data.token, data.user);
-      }
-    } catch (error: any) {
-      // error message 
-      if (error?.response?.status === 401) {
-        setErrorMessage("Email atau Password salah. Silahkan coba lagi.");
-      } else {
-        setErrorMessage("Terjadi kesalahan. Silahkan coba lagi.");
-      }
-      console.error("Login failed:", error);
-    } finally {
-      setInternalLoading(false);
-    }
-  };
+  const webOutline = Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.navbar}>
-          <CarIcon />
-          <Text style={styles.navTitle}>Ngabengkel</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+        {/* Logo */}
+        <View style={styles.logoRow}>
+          <View style={styles.logoCircle}>
+            <Ionicons name="construct" size={20} color="#fff" />
+          </View>
+          <Text style={styles.logoText}>Ngabengkel</Text>
         </View>
 
-        
-        <View style={styles.body}>
-          <View style={styles.headingContainer}>
-            <Text style={styles.heading}>Selamat datang{"\n"}kembali!</Text>
-            <Text style={styles.subheading}>
-              Masuk untuk melanjutkan ke layanan bengkel
-            </Text>
-          </View>
+        <Text style={styles.heading}>Selamat datang{"\n"}kembali!</Text>
+        <Text style={styles.subheading}>Masuk untuk melanjutkan ke layanan bengkel</Text>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email */}
-            <Text style={styles.label}>Email</Text>
+        {/* Ilustrasi */}
+        <View style={styles.ilustrasi}>
+          <Ionicons name="build-outline" size={48} color="#c5d3f0" />
+          <Text style={styles.ilustrasiText}>Servis mudah, kapan saja & di mana saja</Text>
+        </View>
+
+        {/* Form */}
+        <View style={styles.form}>
+
+          {/* Email */}
+          <Text style={styles.label}>Email</Text>
+          <View style={[
+            styles.inputWrapper,
+            focusedField === 'email' && styles.inputFocused,
+          ]}>
             <TextInput
-              style={styles.input}
+              style={[styles.inputFlex, webOutline]}
               placeholder="Masukkan email Anda"
               placeholderTextColor="#aaa"
               keyboardType="email-address"
               autoCapitalize="none"
               value={credentials.email}
-              onChangeText={(val) => handleChange("email", val)}
+              onChangeText={v => handleChange("email", v)}
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
             />
+          </View>
 
-            {/* Password */}
-            <Text style={styles.label}>Password</Text>
+          {/* Password */}
+          <Text style={styles.label}>Password</Text>
+          <View style={[
+            styles.inputWrapper,
+            focusedField === 'password' && styles.inputFocused,
+          ]}>
             <TextInput
-              style={styles.input}
+              style={[styles.inputFlex, webOutline]}
               placeholder="Masukkan password"
               placeholderTextColor="#aaa"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={credentials.password}
-              onChangeText={(val) => handleChange("password", val)}
+              onChangeText={v => handleChange("password", v)}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField(null)}
             />
-
-            {/* Error Message */}
-            {errorMessage && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorIcon}>⚠️</Text>
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            )}
+            <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={styles.eyeBtn}>
+              <Ionicons name={showPassword ? "eye" : "eye-off"} size={18} color="#aaa" />
+            </TouchableOpacity>
           </View>
+
+          {errorMessage && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={15} color="#CC0000" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
         </View>
 
-        
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.btnPrimary, internalLoading && styles.btnDisabled]}
-            onPress={handleLogin}
-            disabled={internalLoading}
-            activeOpacity={0.85}
-          >
-            {internalLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnTextPrimary}>Masuk</Text>
-            )}
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.btn, loginMutation.isPending && styles.btnDisabled]}
+          onPress={handleLogin} disabled={loginMutation.isPending} activeOpacity={0.85}
+        >
+          {loginMutation.isPending
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.btnText}>Masuk</Text>}
+        </TouchableOpacity>
 
-        
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Belum punya akun? </Text>
-            <Link href="/register">
-              <Text style={styles.registerLink}>Daftar</Text>
-            </Link>
-          </View>
+        <View style={styles.registerRow}>
+          <Text style={styles.registerText}>Belum punya akun? </Text>
+          <Link href="/(auth)/register"><Text style={styles.registerLink}>Daftar</Text></Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EEF2F7",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 32,
-  },
-
-  // Navbar
-  navbar: {
+  container: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 56, paddingBottom: 32 },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 32 },
+  logoCircle: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#3B7BF6", alignItems: "center", justifyContent: "center" },
+  logoText: { fontSize: 18, fontWeight: "700", color: "#3B7BF6" },
+  heading: { fontSize: 28, fontWeight: "800", color: "#1a1a2e", lineHeight: 36, marginBottom: 8 },
+  subheading: { fontSize: 13, color: "#888", marginBottom: 24 },
+  ilustrasi: { backgroundColor: "#F0F5FF", borderRadius: 16, padding: 24, alignItems: "center", gap: 8, marginBottom: 28 },
+  ilustrasiText: { fontSize: 13, color: "#3B7BF6", fontWeight: "500" },
+  form: { gap: 4, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: "600", color: "#1a1a2e", marginBottom: 6, marginTop: 12 },
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 12,
-    marginBottom: 40,
-  },
-  navTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1a1a2e",
-  },
-
-
-  body: {
-    flex: 1,
-  },
-  headingContainer: {
-    marginBottom: 32,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "#1a1a2e",
-    lineHeight: 40,
-    marginBottom: 8,
-  },
-  subheading: {
-    fontSize: 14,
-    color: "#888",
-    fontStyle: "italic",
-  },
-
-  // Form
-  form: {
-    gap: 4,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a1a2e",
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
     backgroundColor: "#fff",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#1a1a2e",
     borderWidth: 1,
     borderColor: "#e0e0e0",
+    paddingHorizontal: 16,
   },
-
-  // Error
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF0F0",
-    borderWidth: 1,
-    borderColor: "#FFCCCC",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 16,
-    gap: 8,
+  inputFocused: {
+    borderColor: "#3B7BF6", // ← biru, bukan hitam
+    borderWidth: 1.5,
   },
-  errorIcon: {
-    fontSize: 14,
-  },
-  errorText: {
-    fontSize: 13,
-    color: "#CC0000",
-    flex: 1,
-  },
-
-  footer: {
-    marginTop: 48,
-    alignItems: "center",
-    gap: 16,
-  },
-  btnPrimary: {
-    backgroundColor: "#3B7BF6",
-    borderRadius: 50,
-    paddingVertical: 16,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnDisabled: {
-    opacity: 0.7,
-  },
-  btnTextPrimary: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  registerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  registerText: {
-    fontSize: 14,
-    color: "#555",
-  },
-  registerLink: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1a1a2e",
-    textDecorationLine: "underline",
-  },
-});
+  inputFlex: { flex: 1, paddingVertical: 14, fontSize: 15, color: "#1a1a2e" },
+  eyeBtn: { padding: 4 },
+  errorBox: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFF0F0", borderWidth: 1, borderColor: "#FFCCCC", borderRadius: 10, padding: 12, gap: 8, marginTop: 8 },
+  errorText: { fontSize: 13, color: "#CC0000", flex: 1 },
+  btn: { backgroundColor: "#3B7BF6", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 16 },
+  btnDisabled: { opacity: 0.7 },
+  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  registerRow: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
+  registerText: { fontSize: 14, color: "#555" },
+  registerLink: { fontSize: 14, fontWeight: "700", color: "#1a1a2e", textDecorationLine: "underline" },
+})
