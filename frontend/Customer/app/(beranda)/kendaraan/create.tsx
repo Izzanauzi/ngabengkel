@@ -1,25 +1,26 @@
- import React, { use, useState } from "react";
- import {
-   KeyboardAvoidingView,
-   Platform,
-   ScrollView,
-   StyleSheet,
-   Text,
-   View,
- } from "react-native";
- import { router } from "expo-router";
- 
+import React, { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+} from "react-native";
+import { router } from "expo-router";
 import { useCreateKendaraanMutation } from "../../../src/hooks/kendaraan.hooks";
- import { KendaraanForm } from "../../../src/components/kendaraan/kendaraanForm";
+import { KendaraanForm } from "../../../src/components/kendaraan/kendaraanForm";
 import { KendaraanRequest } from "../../../src/@types/kendaraan.types";
- 
- export default function KendaraanCreateScreen() {
-   const [errorMessage, setErrorMessage] = useState<string | null>(null);
- 
-   const { createKendaraanMutation } = useCreateKendaraanMutation({
-     successAction: () => router.back(),
-     onError: (message) => setErrorMessage(message),
-   });
+import { useToast } from "../../../src/contexts/toast.context";
+
+export default function KendaraanCreateScreen() {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { showSuccess } = useToast();
+
+  const { createKendaraanMutation } = useCreateKendaraanMutation({
+    successAction: () =>
+      showSuccess("Kendaraan berhasil ditambahkan!", () => router.back()),
+    onError: (message) => setErrorMessage(message),
+  });
  
    const handleSubmit = (payload: KendaraanRequest) => {
      setErrorMessage(null);

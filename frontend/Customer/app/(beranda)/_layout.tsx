@@ -22,9 +22,12 @@ export default function BerandaLayout() {
       <Tabs.Screen name="history/index" options={{ href: null }} />
       <Tabs.Screen name="profile/index" options={{ href: null }} />
       <Tabs.Screen name="booking/index" options={{ href: null }} />
+      <Tabs.Screen name="booking/[id]" options={{ href: null }} />
       <Tabs.Screen name="kendaraan/index" options={{ href: null }} />
       <Tabs.Screen name="kendaraan/create" options={{ href: null }} />
       <Tabs.Screen name="kendaraan/[kendaraan]" options={{ href: null }} />
+      <Tabs.Screen name="kendaraan/[kendaraan]/index" options={{ href: null }} />
+      <Tabs.Screen name="kendaraan/[kendaraan]/edit" options={{ href: null }} />
       <Tabs.Screen name="schedule/index" options={{ href: null }} />
     </Tabs>
   )

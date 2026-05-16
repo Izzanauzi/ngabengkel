@@ -1,26 +1,27 @@
-import { Stack, useRouter, useSegments } from 'expo-router'
-import { useEffect } from 'react'
-import { AuthProvider, useAuth } from '../src/contexts/auth.context'
+import { Stack } from 'expo-router'
+import { AuthProvider } from '../src/contexts/auth.context'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import { View, StyleSheet, Platform } from 'react-native'
+import { ToastProvider } from '../src/contexts/toast.context'
 
 const queryClient = new QueryClient()
-const PUBLIC_ROUTES = ['(auth)', 'home', 'unauthorized']
 
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-    <View style={styles.container}>
-          <View style={styles.mobileWrapper}>
-            <Stack screenOptions={{ headerShown: false }}> 
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(beranda)" />
-              <Stack.Screen name="unauthorized" />
-            </Stack>
+      <AuthProvider>
+        <ToastProvider>
+          <View style={styles.container}>
+            <View style={styles.mobileWrapper}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(beranda)" />
+                <Stack.Screen name="unauthorized" />
+              </Stack>
+            </View>
           </View>
-        </View>
-    </AuthProvider>
+        </ToastProvider>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

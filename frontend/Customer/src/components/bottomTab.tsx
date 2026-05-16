@@ -11,7 +11,22 @@ const ROUTE_LABELS: Record<string, string> = {
   "profile/index": "Profil",
   profile: "Profil",
 };
+
+// Map non-tab routes to the tab that should appear active
+const PARENT_TAB: Record<string, string> = {
+  "kendaraan/index": "profile/index",
+  "kendaraan/create": "profile/index",
+  "kendaraan/[kendaraan]": "profile/index",
+  "booking/index": "services/index",
+  "booking/[id]": "services/index",
+  "services/[id]": "services/index",
+  "schedule/index": "home",
+};
+
 export default function BottomTab({ state, descriptors, navigation }: any) {
+  const currentRouteName = state.routes[state.index]?.name ?? "";
+  const activeTabRoute = PARENT_TAB[currentRouteName] ?? currentRouteName;
+
   return (
     <View
       style={{
@@ -34,11 +49,10 @@ export default function BottomTab({ state, descriptors, navigation }: any) {
         )
         .map((route: any) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === state.routes.indexOf(route);
+          const isFocused = route.name === activeTabRoute;
           const label = options.title ?? ROUTE_LABELS[route.name] ?? route.name;
 
           let iconName: any = "home-outline";
-
           if (route.name === "home")
             iconName = isFocused ? "home" : "home-outline";
           if (route.name === "services" || route.name === "services/index")
@@ -53,10 +67,12 @@ export default function BottomTab({ state, descriptors, navigation }: any) {
               type: "tabPress",
               target: route.key,
             });
-            if (!isFocused && !event.defaultPrevented) {
+            const isOnMainRoute = currentRouteName === route.name;
+            if (!isOnMainRoute && !event.defaultPrevented) {
               navigation.navigate(route.name);
             }
           };
+
           return (
             <TouchableOpacity
               key={route.key}
@@ -68,7 +84,6 @@ export default function BottomTab({ state, descriptors, navigation }: any) {
                 size={24}
                 color={isFocused ? "#3B7BF6" : "#999"}
               />
-
               <Text
                 style={{
                   fontSize: 12,

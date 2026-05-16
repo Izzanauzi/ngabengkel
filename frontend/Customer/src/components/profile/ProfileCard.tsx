@@ -57,27 +57,13 @@ export default function ProfileCard({ isLogin, userData, vehicleCount = 0 }: Pro
             </View>
           </View>
 
-          {/* Bagian ini masih menggunakan data statis/dummy untuk saat ini */}
-          <View style={styles.stats}>
+          {/* <View style={styles.stats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>8</Text>
-              <Text style={styles.statLabel}>Total Servis</Text>
-            </View>
-
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
+              <Ionicons name="bicycle-outline" size={22} color="#3B7BF6" />
               <Text style={styles.statNumber}>{vehicleCount}</Text>
               <Text style={styles.statLabel}>Kendaraan</Text>
             </View>
-
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>450</Text>
-              <Text style={styles.statLabel}>Poin Reward</Text>
-            </View>
-          </View>
+          </View> */}
         </>
       ) : (
         <TouchableOpacity style={styles.loginBox} onPress={() => router.push('/(auth)/login')}>

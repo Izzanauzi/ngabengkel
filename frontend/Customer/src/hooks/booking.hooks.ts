@@ -4,6 +4,27 @@ import { useMemo } from "react";
 
 
 
+// ── GET BOOKING BY ID ─────────────────────────────────────────────────────────
+
+export function useGetBookingById(bookingId: string) {
+  const { data, isLoading, refetch } = useQuery<Booking>({
+    queryKey: ["getBookingById", bookingId],
+    queryFn: () =>
+      baseFetch<Booking>({
+        method: "GET",
+        url: `/bookings/${bookingId}`,
+        options: { showError: false },
+      }),
+    enabled: !!bookingId,
+    retry: false,
+    staleTime: 1 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+
+  return { booking: data ?? null, isLoading, refetch };
+}
+
 // ── GET ALL BOOKINGS ──────────────────────────────────────────────────────────
 
 export function useGetAllBookings() {
@@ -26,7 +47,7 @@ export function useGetAllBookings() {
   const bookings = useMemo(() => data ?? [], [data]);
 
   const bookingAktif = useMemo(
-    () => bookings.filter((b) => b.status === "menunggu_konfirmasi" || b.status === "dikonfirmasi"),
+    () => bookings.filter((b) => b.status === "menunggu_konfirmasi" || b.status === "disetujui"),
     [bookings]
   );
 

@@ -1,63 +1,70 @@
-import { Text, StyleSheet, ScrollView } from 'react-native'
+import React from 'react'
+import { Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { router } from 'expo-router'
 
-// Import Komponen Modular dengan path yang benar
 import HistoryCard from '../../../src/components/history/HistoryCard'
 import EmptyState from '../../../src/components/history/EmptyState'
+import RequireAuth from '../../../src/components/auth/requireAuth'
+import { useGetHistory } from '../../../src/hooks/workorder.hooks'
+import { formatRupiah } from '../../../src/utils/helper'
+
+const formatTanggal = (dateStr: string) => {
+  try {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export default function HistoryScreen() {
-  const isLogin = false // ubah sesuai kondisi
-  const hasData = false // simulasi ada data / tidak
-
-  // Data dummy
-  const data = [
-    {
-      id: 1,
-      title: 'Honda Beat 2020',
-      code: 'WO-20250715-002',
-      services: ['Ganti oli mesin', 'Tune up'],
-      date: '15 Jul 2025',
-      price: 'Rp 180.000',
-      status: 'Selesai',
-    },
-    {
-      id: 2,
-      title: 'Honda Vario 150',
-      code: 'WO-20250601-003',
-      services: ['Ganti ban depan', 'Periksa rem'],
-      date: '01 Jun 2025',
-      price: 'Rp 350.000',
-      status: 'Selesai',
-    },
-  ]
+  const { history, isLoading, refetch } = useGetHistory()
 
   return (
-    <ScrollView style={styles.container}>
-      
-      {/* HEADER */}
-      <Text style={styles.title}>Riwayat Servis</Text>
-      <Text style={styles.subtitle}>
-        Riwayat semua servis kendaraan Anda
-      </Text>
+    <RequireAuth>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} colors={["#1565C0"]} />
+        }
+      >
+        {/* HEADER */}
+        <Text style={styles.title}>Riwayat Servis</Text>
+        <Text style={styles.subtitle}>Riwayat semua servis kendaraan Anda</Text>
 
-      {/* ===== KONDISI RENDER ===== */}
-      {isLogin && hasData ? (
-        data.map((item) => (
-          <HistoryCard 
-            key={item.id}
-            title={item.title}
-            code={item.code}
-            services={item.services}
-            date={item.date}
-            price={item.price}
-            status={item.status}
-          />
-        ))
-      ) : (
-        /* Panggil Komponen EmptyState */
-        <EmptyState />
-      )}
+        {isLoading ? (
+          <ActivityIndicator color="#1565C0" style={{ marginTop: 40 }} />
+        ) : history.length > 0 ? (
+          history.map((item) => {
+            const kendaraanLabel = item.kendaraan
+              ? `${item.kendaraan.merek} ${item.kendaraan.model}`
+              : "Kendaraan";
+            const services = item.deskripsi_kerusakan
+              ? [item.deskripsi_kerusakan]
+              : item.items?.map((i) => i.nama_item) ?? [];
+            const total = item.biaya_jasa + (item.items ?? []).reduce((s, i) => s + i.subtotal, 0);
 
-    </ScrollView>
+            return (
+              <HistoryCard
+                key={item.wo_id}
+                title={kendaraanLabel}
+                code={item.nomor_wo}
+                services={services}
+                date={formatTanggal(item.created_at)}
+                price={formatRupiah(total)}
+                status={item.status === "lunas" ? "Lunas" : "Selesai"}
+                onPress={() => router.push(`/(beranda)/services/${item.wo_id}`)}
+              />
+            );
+          })
+        ) : (
+          <EmptyState />
+        )}
+      </ScrollView>
+    </RequireAuth>
   )
 }
 

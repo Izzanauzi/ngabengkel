@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,52 +6,105 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useGetWorkOrderById, useApproveAction, useRejectAction } from "../../../src/hooks/workorder.hooks";
+import { formatRupiah } from "../../../src/utils/helper";
+import { useToast } from "../../../src/contexts/toast.context";
 
-// ── Dummy Data ────────────────────────────────────────────────────────────────
-const DETAIL_WO = {
-  nomorWO: "WO-20250801-003",
-  status: "Sedang Dikerjakan",
-  kendaraan: "Honda Vario 150",
-  platNomor: "D 1234 ABC",
-  mekanik: "Ahmad Fauzi",
-  perluPersetujuan: true,
-  persetujuanNote: "Ditemukan keretakan pada blok mesin.",
-  estimasiBiayaTambahan: "Rp 500.000",
-  histori: [
-    { jam: "10:00", keterangan: "Kendaraan diterima dan diperiksa awal", done: true },
-    { jam: "11:30", keterangan: "Penggantian kampas rem depan", done: true },
-    { jam: "13:00", keterangan: "Pemeriksaan kelistrikan", current: true },
-    { jam: "14:30", keterangan: "Pengecekan akhir & uji jalan", done: false },
-  ],
-  estimasiBiaya: [
-    { item: "Jasa servis", harga: "Rp 75.000" },
-    { item: "Kampas rem depan", harga: "Rp 85.000" },
-    { item: "Oli mesin", harga: "Rp 65.000" },
-  ],
+const formatJam = (dateStr: string) => {
+  try {
+    return new Date(dateStr).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "-";
+  }
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function DetailWO() {
-  const [persetujuan, setPersetujuan] = useState<"pending" | "setuju" | "tolak">("pending");
-  const wo = DETAIL_WO;
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { workOrder: wo, isLoading, refetch } = useGetWorkOrderById(id ?? "");
+  const { showSuccess } = useToast();
+
+  const { approveActionMutation } = useApproveAction(id ?? "", {
+    successAction: () => {
+      showSuccess("Tindakan tambahan disetujui. Servis dilanjutkan.");
+      refetch();
+    },
+  });
+
+  const { rejectActionMutation } = useRejectAction(id ?? "", {
+    successAction: () => {
+      showSuccess("Tindakan tambahan ditolak.");
+      refetch();
+    },
+  });
 
   const handleSetuju = () => {
     Alert.alert("Konfirmasi", "Apakah Anda menyetujui biaya tambahan ini?", [
       { text: "Batal", style: "cancel" },
-      { text: "Setuju", onPress: () => setPersetujuan("setuju") },
+      { text: "Setuju", onPress: () => approveActionMutation.mutate() },
     ]);
   };
 
   const handleTolak = () => {
     Alert.alert("Konfirmasi", "Apakah Anda menolak biaya tambahan ini?", [
       { text: "Batal", style: "cancel" },
-      { text: "Tolak", style: "destructive", onPress: () => setPersetujuan("tolak") },
+      { text: "Tolak", style: "destructive", onPress: () => rejectActionMutation.mutate() },
     ]);
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detail Servis</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <ActivityIndicator color="#1565C0" style={{ marginTop: 40 }} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!wo) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detail Servis</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle-outline" size={48} color="#BDBDBD" />
+          <Text style={styles.emptyText}>Data servis tidak ditemukan</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const kendaraanLabel = wo.kendaraan
+    ? `${wo.kendaraan.merek} ${wo.kendaraan.model}`
+    : "-";
+  const platNomor = wo.kendaraan?.nomor_polisi ?? "-";
+  const mekanikNama = wo.mekanik?.nama ?? "Belum ditugaskan";
+
+  const perluPersetujuan = wo.status === "menunggu_persetujuan";
+  const suspendProgress = [...(wo.progress ?? [])]
+    .reverse()
+    .find((p) => p.tipe === "suspend");
+
+  const totalMaterial = (wo.items ?? []).reduce((sum, i) => sum + i.subtotal, 0);
+  const totalBiaya = wo.biaya_jasa + totalMaterial;
+
+  const isActionLoading = approveActionMutation.isPending || rejectActionMutation.isPending;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -71,42 +124,54 @@ export default function DetailWO() {
             <Text style={styles.woLabel}>Work Order</Text>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{wo.status}</Text>
+              <Text style={styles.statusText}>{wo.status.replace(/_/g, " ")}</Text>
             </View>
           </View>
-          <Text style={styles.woNumber}>{wo.nomorWO}</Text>
+          <Text style={styles.woNumber}>{wo.nomor_wo}</Text>
 
           <View style={styles.woGrid}>
             <View style={styles.woGridItem}>
               <Text style={styles.woGridLabel}>Kendaraan</Text>
-              <Text style={styles.woGridValue}>{wo.kendaraan}</Text>
-              <Text style={styles.woGridSub}>{wo.platNomor}</Text>
+              <Text style={styles.woGridValue}>{kendaraanLabel}</Text>
+              <Text style={styles.woGridSub}>{platNomor}</Text>
             </View>
             <View style={styles.woGridItem}>
               <Text style={styles.woGridLabel}>Mekanik</Text>
-              <Text style={styles.woGridValue}>{wo.mekanik}</Text>
+              <Text style={styles.woGridValue}>{mekanikNama}</Text>
             </View>
           </View>
         </View>
 
         {/* Persetujuan Banner */}
-        {wo.perluPersetujuan && persetujuan === "pending" && (
+        {perluPersetujuan && suspendProgress && (
           <View style={styles.persetujuanCard}>
             <View style={styles.persetujuanHeader}>
               <Ionicons name="warning-outline" size={18} color="#E65100" />
               <Text style={styles.persetujuanTitle}>Diperlukan Persetujuan Anda</Text>
             </View>
-            <Text style={styles.persetujuanNote}>{wo.persetujuanNote}</Text>
-            <Text style={styles.persetujuanBiaya}>
-              Estimasi biaya tambahan:{" "}
-              <Text style={styles.persetujuanBiayaBold}>{wo.estimasiBiayaTambahan}</Text>
-            </Text>
+            <Text style={styles.persetujuanNote}>{suspendProgress.deskripsi}</Text>
+            {suspendProgress.est_biaya_tambahan != null && (
+              <Text style={styles.persetujuanBiaya}>
+                Estimasi biaya tambahan:{" "}
+                <Text style={styles.persetujuanBiayaBold}>
+                  {formatRupiah(suspendProgress.est_biaya_tambahan)}
+                </Text>
+              </Text>
+            )}
             <View style={styles.persetujuanBtns}>
-              <TouchableOpacity style={styles.setujuBtn} onPress={handleSetuju}>
+              <TouchableOpacity
+                style={[styles.setujuBtn, isActionLoading && { opacity: 0.6 }]}
+                onPress={handleSetuju}
+                disabled={isActionLoading}
+              >
                 <Ionicons name="checkmark" size={14} color="#FFF" />
                 <Text style={styles.setujuBtnText}>Setujui</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.tolakBtn} onPress={handleTolak}>
+              <TouchableOpacity
+                style={[styles.tolakBtn, isActionLoading && { opacity: 0.6 }]}
+                onPress={handleTolak}
+                disabled={isActionLoading}
+              >
                 <Ionicons name="close" size={14} color="#FFF" />
                 <Text style={styles.tolakBtnText}>Tolak</Text>
               </TouchableOpacity>
@@ -114,85 +179,70 @@ export default function DetailWO() {
           </View>
         )}
 
-        {persetujuan === "setuju" && (
-          <View style={[styles.persetujuanCard, { backgroundColor: "#E8F5E9", borderColor: "#A5D6A7" }]}>
-            <View style={styles.persetujuanHeader}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#2E7D32" />
-              <Text style={[styles.persetujuanTitle, { color: "#2E7D32" }]}>
-                Anda telah menyetujui biaya tambahan
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {persetujuan === "tolak" && (
-          <View style={[styles.persetujuanCard, { backgroundColor: "#FFEBEE", borderColor: "#EF9A9A" }]}>
-            <View style={styles.persetujuanHeader}>
-              <Ionicons name="close-circle-outline" size={18} color="#C62828" />
-              <Text style={[styles.persetujuanTitle, { color: "#C62828" }]}>
-                Anda telah menolak biaya tambahan
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Histori Progres */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Histori Progres</Text>
-          {wo.histori.map((h, i) => (
-            <View key={i} style={styles.historiItem}>
-              <View style={styles.historiLeft}>
-                <View
-                  style={[
-                    styles.historiDot,
-                    h.current && styles.historiDotCurrent,
-                    h.done && styles.historiDotDone,
-                  ]}
-                />
-                {i < wo.histori.length - 1 && (
-                  <View style={[styles.historiLine, h.done && styles.historiLineDone]} />
-                )}
+        {(wo.progress ?? []).length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Histori Progres</Text>
+            {wo.progress.map((p, i) => (
+              <View key={p.progress_id} style={styles.historiItem}>
+                <View style={styles.historiLeft}>
+                  <View
+                    style={[
+                      styles.historiDot,
+                      i === wo.progress.length - 1 && styles.historiDotCurrent,
+                      i < wo.progress.length - 1 && styles.historiDotDone,
+                    ]}
+                  />
+                  {i < wo.progress.length - 1 && (
+                    <View style={styles.historiLineDone} />
+                  )}
+                </View>
+                <View style={styles.historiRight}>
+                  <Text
+                    style={[
+                      styles.historiJam,
+                      i === wo.progress.length - 1 && styles.historiJamCurrent,
+                    ]}
+                  >
+                    {formatJam(p.created_at)}{" "}
+                    {i === wo.progress.length - 1 && (
+                      <Text style={styles.saatIni}>Terbaru</Text>
+                    )}
+                  </Text>
+                  <Text style={styles.historiKet}>{p.deskripsi}</Text>
+                  {p.tipe === "suspend" && p.est_biaya_tambahan != null && (
+                    <Text style={styles.biayaTambahan}>
+                      + {formatRupiah(p.est_biaya_tambahan)}
+                    </Text>
+                  )}
+                </View>
               </View>
-              <View style={styles.historiRight}>
-                <Text
-                  style={[
-                    styles.historiJam,
-                    h.current && styles.historiJamCurrent,
-                    !h.done && !h.current && styles.historiJamFuture,
-                  ]}
-                >
-                  {h.jam} {h.current && <Text style={styles.saatIni}>Saat ini</Text>}
-                </Text>
-                <Text
-                  style={[
-                    styles.historiKet,
-                    !h.done && !h.current && styles.historiKetFuture,
-                  ]}
-                >
-                  {h.keterangan}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Estimasi Biaya */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Estimasi Biaya</Text>
-          {wo.estimasiBiaya.map((b, i) => (
-            <View key={i} style={[styles.biayaRow, i < wo.estimasiBiaya.length - 1 && styles.biayaBorder]}>
-              <Text style={styles.biayaItem}>{b.item}</Text>
-              <Text style={styles.biayaHarga}>{b.harga}</Text>
+          <Text style={styles.cardTitle}>Rincian Biaya</Text>
+          <View style={[styles.biayaRow, styles.biayaBorder]}>
+            <Text style={styles.biayaItem}>Biaya Jasa</Text>
+            <Text style={styles.biayaHarga}>{formatRupiah(wo.biaya_jasa)}</Text>
+          </View>
+          {(wo.items ?? []).map((item, i) => (
+            <View
+              key={item.wo_item_id}
+              style={[styles.biayaRow, i < wo.items.length - 1 && styles.biayaBorder]}
+            >
+              <Text style={styles.biayaItem}>
+                {item.nama_item} x{item.jumlah}
+              </Text>
+              <Text style={styles.biayaHarga}>{formatRupiah(item.subtotal)}</Text>
             </View>
           ))}
-          {wo.perluPersetujuan && (
-            <View style={[styles.biayaRow, { marginTop: 4, paddingTop: 10, borderTopWidth: 1.5, borderTopColor: "#FFE0B2" }]}>
-              <Text style={[styles.biayaItem, { color: "#E65100" }]}>Biaya tambahan</Text>
-              <Text style={[styles.biayaHarga, { color: "#E65100" }]}>
-                {wo.estimasiBiayaTambahan}
-              </Text>
-            </View>
-          )}
+          <View style={[styles.biayaRow, { marginTop: 4, paddingTop: 10, borderTopWidth: 1.5, borderTopColor: "#E0E0E0" }]}>
+            <Text style={[styles.biayaItem, { fontWeight: "700", color: "#1A1A2E" }]}>Total</Text>
+            <Text style={[styles.biayaHarga, { color: "#1565C0" }]}>{formatRupiah(totalBiaya)}</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -213,6 +263,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#1A1A2E" },
 
   scroll: { paddingHorizontal: 16, paddingBottom: 32 },
+
+  emptyState: { alignItems: "center", paddingTop: 80, gap: 12 },
+  emptyText: { color: "#BDBDBD", fontSize: 14 },
 
   woCard: {
     backgroundColor: "#1565C0",
@@ -237,7 +290,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF6D00" },
-  statusText: { fontSize: 11, fontWeight: "600", color: "#E65100" },
+  statusText: { fontSize: 11, fontWeight: "600", color: "#E65100", textTransform: "capitalize" },
   woNumber: { fontSize: 22, fontWeight: "800", color: "#FFF", marginBottom: 16 },
   woGrid: { flexDirection: "row", gap: 24 },
   woGridItem: { gap: 2 },
@@ -307,15 +360,13 @@ const styles = StyleSheet.create({
   },
   historiDotDone: { backgroundColor: "#1565C0", borderColor: "#1565C0" },
   historiDotCurrent: { backgroundColor: "#1565C0", borderColor: "#90CAF9", width: 16, height: 16, borderRadius: 8 },
-  historiLine: { flex: 1, width: 2, backgroundColor: "#E0E0E0", marginVertical: 2 },
-  historiLineDone: { backgroundColor: "#1565C0" },
+  historiLineDone: { flex: 1, width: 2, backgroundColor: "#1565C0", marginVertical: 2 },
   historiRight: { flex: 1, paddingBottom: 16 },
-  historiJam: { fontSize: 13, fontWeight: "700", color: "#1A1A2E", flexDirection: "row", alignItems: "center" },
+  historiJam: { fontSize: 13, fontWeight: "700", color: "#1A1A2E" },
   historiJamCurrent: { color: "#1565C0" },
-  historiJamFuture: { color: "#BDBDBD" },
   saatIni: { fontSize: 11, color: "#1565C0", fontWeight: "500" },
   historiKet: { fontSize: 13, color: "#555", marginTop: 2 },
-  historiKetFuture: { color: "#BDBDBD" },
+  biayaTambahan: { fontSize: 12, color: "#E65100", fontWeight: "600", marginTop: 2 },
 
   biayaRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
   biayaBorder: { borderBottomWidth: 1, borderBottomColor: "#F5F5F5" },
