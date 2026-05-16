@@ -1,54 +1,44 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
-
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { useCallback } from 'react'
-
-// Import Auth Context & Hooks
-import { useAuth } from '../../../src/contexts/auth.context' 
-import { useGetAllKendaraan,  useDeleteKendaraanMutation } from '../../../src/hooks/kendaraan.hooks'
-
-
-
-// Import Komponen Modular
+import { useCallback, useState } from 'react'
+import { useAuth } from '../../../src/contexts/auth.context'
+import { useGetAllKendaraan, useDeleteKendaraanMutation } from '../../../src/hooks/kendaraan.hooks'
+import { useToast } from '../../../src/contexts/toast.context'
+import RequireAuth from '../../../src/components/auth/requireAuth'
 import ProfileCard from '../../../src/components/profile/ProfileCard'
 import VehicleCard from '../../../src/components/profile/VehicleCard'
 import MenuList from '../../../src/components/profile/MenuList'
 import LogoutButton from '../../../src/components/profile/LogoutButton'
 import { Kendaraan } from '../../../src/@types/kendaraan.types'
-import { Modal } from 'react-native'
-import { useState } from 'react'
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
   const isLogin = !!token;
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-const [selectedVehicle, setSelectedVehicle] = useState<Kendaraan | null>(null)
-const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
-  successAction: () => {
-    setShowDeleteModal(false)
-  },
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Kendaraan | null>(null);
 
-  onError: (message) => {
-    console.log(message)
-  },
-})
-  // 1. Memanggil hook kendaraan untuk mengambil data asli dari backend
-  // const { kendaraanList, isLoading } = useGetAllKendaraan();
-  const { kendaraanList, isLoading } = useGetAllKendaraan()
-  console.log('isLogin:', isLogin)
-  console.log('isLoading:', isLoading)
-  console.log('kendaraanList:', kendaraanList)
-  const handlePressDetail = useCallback((id: string) => {
-    router.push(`/(beranda)/kendaraan/${id}`);
-  }, [router]);
-  
+  const { kendaraanList, isLoading } = useGetAllKendaraan();
+
+  const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
+    successAction: () => {
+      setShowDeleteModal(false);
+      showSuccess("Kendaraan berhasil dihapus!");
+    },
+    onError: (message) => {
+      setShowDeleteModal(false);
+      Alert.alert("Gagal", message);
+    },
+  });
+
   const handlePressAdd = useCallback(() => {
     router.push("/(beranda)/kendaraan/create");
   }, [router]);
 
   return (
+    <RequireAuth>
     <ScrollView style={styles.container}>
       
       {/* HEADER */}
@@ -156,6 +146,7 @@ const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
   </View>
 </Modal>
     </ScrollView>
+    </RequireAuth>
   )
 }
 

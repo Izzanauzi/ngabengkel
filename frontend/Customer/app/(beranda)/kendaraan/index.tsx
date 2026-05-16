@@ -1,5 +1,4 @@
-import RequireAuth from '../../../src/components/requireAuth';
- import React, { useCallback } from "react";
+import React, { useCallback } from "react";
  import {
    ActivityIndicator,
    Alert,

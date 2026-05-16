@@ -7,20 +7,19 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useGetKendaraanById, useUpdateKendaraanMutation } from "../../../../src/hooks/kendaraan.hooks"
 import { KendaraanForm } from "../../../../src/components/kendaraan/kendaraanForm"
 import { KendaraanRequest } from "../../../../src/@types/kendaraan.types"
+import { useToast } from "../../../../src/contexts/toast.context"
 
 export default function KendaraanEditScreen() {
   const { kendaraan: kendaraanId } = useLocalSearchParams<{ kendaraan: string }>()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { showSuccess } = useToast()
 
   const { kendaraan, isLoading } = useGetKendaraanById(kendaraanId)
   const { updateKendaraanMutation } = useUpdateKendaraanMutation({
-    successAction: () => router.back(),
+    successAction: () =>
+      showSuccess("Kendaraan berhasil diperbarui!", () => router.back()),
     onError: (message) => setErrorMessage(message),
   })
-
-  // ← semua log dan logic di atas return
-  console.log('params kendaraanId:', kendaraanId)
-  console.log('kendaraan data:', kendaraan)
 
   const handleSubmit = (payload: KendaraanRequest) => {
     if (!kendaraanId) return
