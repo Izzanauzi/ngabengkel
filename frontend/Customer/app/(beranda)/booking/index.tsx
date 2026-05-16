@@ -14,13 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCreateBooking } from "../../../src/hooks/booking.hooks";
-
-// ── Dummy kendaraan (ganti dengan useGetAllKendaraan nanti) ───────────────────
-const KENDARAAN_LIST = [
-  { id: "kendaraan-uuid-1", label: "Honda Vario 150 · D 1234 ABC" },
-  { id: "kendaraan-uuid-2", label: "Yamaha NMAX · D 5678 XYZ" },
-  { id: "kendaraan-uuid-3", label: "Honda Beat · D 9999 ZZZ" },
-];
+import { useGetAllKendaraan } from "../../../src/hooks/kendaraan.hooks";
+import { Kendaraan } from "../../../src/@types/kendaraan.types";
 
 const STEP_LABELS = ["Kendaraan", "Jadwal", "Keluhan", "Konfirmasi"];
 const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
@@ -34,11 +29,15 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function BookingServis() {
   const today = new Date();
 
-  const [selectedKendaraan, setSelectedKendaraan] = useState<string | null>(null);
+  // ── Data kendaraan dari API ───────────────────────────────────────────────
+  const { kendaraanList, isLoading: isLoadingKendaraan } = useGetAllKendaraan();
+  // kendaraanList dari hook masih berupa ApiResponse, extract .data-nya
+  const kendaraans: Kendaraan[] = (kendaraanList as any)?.data ?? [];
+
+  const [selectedKendaraanId, setSelectedKendaraanId] = useState<string | null>(null);
   const [showKendaraanPicker, setShowKendaraanPicker] = useState(false);
   const [tanggal, setTanggal] = useState("");
   const [jam, setJam] = useState("09:00");
@@ -58,9 +57,13 @@ export default function BookingServis() {
     },
   });
 
-  const selectedKendaraanLabel = KENDARAAN_LIST.find((k) => k.id === selectedKendaraan)?.label ?? null;
-  const activeStep = !selectedKendaraan ? 0 : !tanggal ? 1 : keluhan.trim().length === 0 ? 2 : 3;
-  const canSubmit = !!selectedKendaraan && !!tanggal && keluhan.trim().length > 0;
+  const selectedKendaraan = kendaraans.find((k) => k.kendaraan_id === selectedKendaraanId) ?? null;
+  const selectedKendaraanLabel = selectedKendaraan
+    ? `${selectedKendaraan.merek} ${selectedKendaraan.model} · ${selectedKendaraan.nomor_polisi}`
+    : null;
+
+  const activeStep = !selectedKendaraanId ? 0 : !tanggal ? 1 : keluhan.trim().length === 0 ? 2 : 3;
+  const canSubmit = !!selectedKendaraanId && !!tanggal && keluhan.trim().length > 0;
 
   const handleSelectDay = (day: number) => {
     const d = new Date(calYear, calMonth, day);
@@ -80,10 +83,9 @@ export default function BookingServis() {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const eta = buildETARFC3339();
     createBookingMutation.mutate({
-      kendaraan_id: selectedKendaraan!,
-      eta,
+      kendaraan_id: selectedKendaraanId!,
+      eta: buildETARFC3339(),
       keluhan_awal: keluhan.trim() || undefined,
     });
   };
@@ -137,32 +139,55 @@ export default function BookingServis() {
         {/* ── Step 1: Kendaraan ── */}
         <View style={styles.card}>
           <View style={styles.stepHeader}>
-            <View style={[styles.stepNumBig, !!selectedKendaraan && styles.stepNumBigDone]}>
-              {selectedKendaraan ? <Ionicons name="checkmark" size={14} color="#FFF" /> : <Text style={styles.stepNumBigText}>1</Text>}
+            <View style={[styles.stepNumBig, !!selectedKendaraanId && styles.stepNumBigDone]}>
+              {selectedKendaraanId
+                ? <Ionicons name="checkmark" size={14} color="#FFF" />
+                : <Text style={styles.stepNumBigText}>1</Text>}
             </View>
             <Text style={styles.stepTitle}>Pilih Kendaraan</Text>
           </View>
 
-          <TouchableOpacity style={styles.picker} onPress={() => setShowKendaraanPicker(!showKendaraanPicker)}>
+          <TouchableOpacity
+            style={styles.picker}
+            onPress={() => !isLoadingKendaraan && setShowKendaraanPicker(!showKendaraanPicker)}
+          >
+            {isLoadingKendaraan
+              ? <ActivityIndicator size="small" color="#1565C0" />
+              : <Ionicons name="bicycle-outline" size={16} color="#888" />
+            }
             <Text style={selectedKendaraanLabel ? styles.pickerValue : styles.pickerPlaceholder}>
-              {selectedKendaraanLabel ?? "Pilih kendaraan terdaftar..."}
+              {isLoadingKendaraan
+                ? "Memuat kendaraan..."
+                : selectedKendaraanLabel ?? "Pilih kendaraan terdaftar..."}
             </Text>
-            <Ionicons name={showKendaraanPicker ? "chevron-up" : "chevron-down"} size={16} color="#888" />
+            {!isLoadingKendaraan && (
+              <Ionicons name={showKendaraanPicker ? "chevron-up" : "chevron-down"} size={16} color="#888" />
+            )}
           </TouchableOpacity>
 
           {showKendaraanPicker && (
             <View style={styles.dropdownList}>
-              {KENDARAAN_LIST.map((k) => (
-                <TouchableOpacity
-                  key={k.id}
-                  style={[styles.dropdownItem, selectedKendaraan === k.id && styles.dropdownItemActive]}
-                  onPress={() => { setSelectedKendaraan(k.id); setShowKendaraanPicker(false); }}
-                >
-                  <Ionicons name="bicycle-outline" size={16} color="#1565C0" />
-                  <Text style={styles.dropdownItemText}>{k.label}</Text>
-                  {selectedKendaraan === k.id && <Ionicons name="checkmark-circle" size={16} color="#1565C0" />}
-                </TouchableOpacity>
-              ))}
+              {kendaraans.length === 0 ? (
+                <View style={styles.dropdownEmpty}>
+                  <Text style={styles.dropdownEmptyText}>Tidak ada kendaraan terdaftar</Text>
+                </View>
+              ) : (
+                kendaraans.map((k) => (
+                  <TouchableOpacity
+                    key={k.kendaraan_id}
+                    style={[styles.dropdownItem, selectedKendaraanId === k.kendaraan_id && styles.dropdownItemActive]}
+                    onPress={() => { setSelectedKendaraanId(k.kendaraan_id); setShowKendaraanPicker(false); }}
+                  >
+                    <Ionicons name="bicycle-outline" size={16} color="#1565C0" />
+                    <Text style={styles.dropdownItemText}>
+                      {k.merek} {k.model} · {k.nomor_polisi}
+                    </Text>
+                    {selectedKendaraanId === k.kendaraan_id && (
+                      <Ionicons name="checkmark-circle" size={16} color="#1565C0" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
         </View>
@@ -195,7 +220,9 @@ export default function BookingServis() {
         <View style={styles.card}>
           <View style={styles.stepHeader}>
             <View style={[styles.stepNumBig, keluhan.trim().length > 0 && styles.stepNumBigDone]}>
-              {keluhan.trim().length > 0 ? <Ionicons name="checkmark" size={14} color="#FFF" /> : <Text style={styles.stepNumBigText}>3</Text>}
+              {keluhan.trim().length > 0
+                ? <Ionicons name="checkmark" size={14} color="#FFF" />
+                : <Text style={styles.stepNumBigText}>3</Text>}
             </View>
             <Text style={styles.stepTitle}>Keluhan Awal</Text>
           </View>
@@ -231,7 +258,7 @@ export default function BookingServis() {
         >
           {createBookingMutation.isPending
             ? <ActivityIndicator color="#FFF" />
-            : <Text style={styles.nextBtnText}>Lengkapi Data Booking</Text>
+            : <Text style={styles.nextBtnText}>Buat Booking Servis</Text>
           }
         </TouchableOpacity>
       </View>
@@ -249,18 +276,19 @@ export default function BookingServis() {
                 <Ionicons name="chevron-forward" size={18} color="#1565C0" />
               </TouchableOpacity>
             </View>
-
             <View style={styles.calDayHeader}>
               {DAYS.map((d) => <Text key={d} style={styles.calDayLabel}>{d}</Text>)}
             </View>
-
             <View style={styles.calGrid}>
               {Array.from({ length: firstDay }).map((_, i) => <View key={`e-${i}`} style={styles.calCell} />)}
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const day = i + 1;
                 const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const isPast = new Date(calYear, calMonth, day) < todayStart;
-                const isSelected = selectedDate?.getDate() === day && selectedDate?.getMonth() === calMonth && selectedDate?.getFullYear() === calYear;
+                const isSelected =
+                  selectedDate?.getDate() === day &&
+                  selectedDate?.getMonth() === calMonth &&
+                  selectedDate?.getFullYear() === calYear;
                 return (
                   <TouchableOpacity
                     key={day}
@@ -309,7 +337,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F5F6FA" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#1A1A2E" },
-
   stepper: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, marginBottom: 4 },
   stepItem: { alignItems: "center", gap: 4 },
   stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#E0E0E0", alignItems: "center", justifyContent: "center" },
@@ -321,7 +348,6 @@ const styles = StyleSheet.create({
   stepLine: { flex: 1, height: 2, backgroundColor: "#E0E0E0", marginBottom: 16 },
   stepLineActive: { backgroundColor: "#1565C0" },
   stepHint: { textAlign: "center", fontSize: 12, color: "#BDBDBD", marginBottom: 8 },
-
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
   card: { backgroundColor: "#FFF", borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   stepHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
@@ -329,32 +355,27 @@ const styles = StyleSheet.create({
   stepNumBigDone: { backgroundColor: "#1565C0" },
   stepNumBigText: { color: "#1565C0", fontWeight: "800", fontSize: 14 },
   stepTitle: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
-
   picker: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: "#E0E0E0", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, gap: 8, backgroundColor: "#FAFAFA" },
   pickerPlaceholder: { flex: 1, color: "#BBB", fontSize: 14 },
   pickerValue: { flex: 1, color: "#1A1A2E", fontSize: 14, fontWeight: "500" },
-
   dropdownList: { borderWidth: 1, borderColor: "#E0E0E0", borderRadius: 10, marginTop: 6, overflow: "hidden" },
   dropdownItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F5F5F5" },
   dropdownItemActive: { backgroundColor: "#E3F2FD" },
   dropdownItemText: { flex: 1, fontSize: 13, color: "#1A1A2E" },
-
+  dropdownEmpty: { padding: 16, alignItems: "center" },
+  dropdownEmptyText: { color: "#BDBDBD", fontSize: 13 },
   jadwalRow: { flexDirection: "row", gap: 10 },
   jamPicker: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: "#1565C0", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, gap: 6, backgroundColor: "#E3F2FD" },
   jamText: { fontSize: 14, fontWeight: "700", color: "#1565C0" },
   hint: { marginTop: 8, fontSize: 12, color: "#BDBDBD" },
-
   textarea: { borderWidth: 1.5, borderColor: "#E0E0E0", borderRadius: 10, padding: 12, fontSize: 14, color: "#1A1A2E", minHeight: 120, backgroundColor: "#FAFAFA" },
   charCount: { textAlign: "right", fontSize: 11, color: "#BDBDBD", marginTop: 4 },
-
   infoBanner: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFF8E1", borderColor: "#FFD54F", borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
   infoText: { flex: 1, fontSize: 12, color: "#F57F17", lineHeight: 18 },
-
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: "#F5F6FA" },
   nextBtn: { backgroundColor: "#1565C0", borderRadius: 12, alignItems: "center", justifyContent: "center", paddingVertical: 14 },
   nextBtnDisabled: { backgroundColor: "#BDBDBD" },
   nextBtnText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
-
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 },
   calendarModal: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, width: "100%", maxWidth: 340 },
   calNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
@@ -369,7 +390,6 @@ const styles = StyleSheet.create({
   calCellText: { fontSize: 13, color: "#1A1A2E", fontWeight: "500" },
   calCellTextSelected: { color: "#FFF", fontWeight: "700" },
   calCellTextPast: { color: "#BBB" },
-
   timeModal: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, width: "100%", maxWidth: 280 },
   timeModalTitle: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 12, textAlign: "center" },
   timeOption: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, marginBottom: 4 },
