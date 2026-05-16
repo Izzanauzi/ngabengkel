@@ -1,9 +1,3 @@
-/**
- * app/(beranda)/kendaraan/create.tsx
- *
- * Screen tambah kendaraan baru.
- */
-
  import React, { use, useState } from "react";
  import {
    KeyboardAvoidingView,
@@ -23,7 +17,7 @@ import { KendaraanRequest } from "../../../src/@types/kendaraan.types";
    const [errorMessage, setErrorMessage] = useState<string | null>(null);
  
    const { createKendaraanMutation } = useCreateKendaraanMutation({
-     successAction: () => router.back(), // kembali ke list setelah berhasil
+     successAction: () => router.back(),
      onError: (message) => setErrorMessage(message),
    });
  

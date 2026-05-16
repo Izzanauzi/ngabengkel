@@ -6,7 +6,8 @@ import { useCallback } from 'react'
 
 // Import Auth Context & Hooks
 import { useAuth } from '../../../src/contexts/auth.context' 
-import { useGetAllKendaraan } from '../../../src/hooks/kendaraan.hooks'
+import { useGetAllKendaraan,  useDeleteKendaraanMutation } from '../../../src/hooks/kendaraan.hooks'
+
 
 
 // Import Komponen Modular
@@ -15,15 +16,30 @@ import VehicleCard from '../../../src/components/profile/VehicleCard'
 import MenuList from '../../../src/components/profile/MenuList'
 import LogoutButton from '../../../src/components/profile/LogoutButton'
 import { Kendaraan } from '../../../src/@types/kendaraan.types'
+import { Modal } from 'react-native'
+import { useState } from 'react'
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { token, user } = useAuth();
   const isLogin = !!token;
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+const [selectedVehicle, setSelectedVehicle] = useState<Kendaraan | null>(null)
+const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
+  successAction: () => {
+    setShowDeleteModal(false)
+  },
 
+  onError: (message) => {
+    console.log(message)
+  },
+})
   // 1. Memanggil hook kendaraan untuk mengambil data asli dari backend
-  const { kendaraanList, isLoading } = useGetAllKendaraan();
-
+  // const { kendaraanList, isLoading } = useGetAllKendaraan();
+  const { kendaraanList, isLoading } = useGetAllKendaraan()
+  console.log('isLogin:', isLogin)
+  console.log('isLoading:', isLoading)
+  console.log('kendaraanList:', kendaraanList)
   const handlePressDetail = useCallback((id: string) => {
     router.push(`/(beranda)/kendaraan/${id}`);
   }, [router]);
@@ -64,14 +80,23 @@ export default function ProfileScreen() {
           {isLoading ? (
             <ActivityIndicator size="large" color="#3B7BF6" style={{ marginVertical: 20 }} />
           ) : (
-            kendaraanList.map((vehicle: Kendaraan) => (
-              <VehicleCard 
-                key={vehicle.kendaraan_id}
-                name={`${vehicle.merek} ${vehicle.model}`} // Menggabungkan merek dan model
-                year={vehicle.tahun.toString()}
-                type={vehicle.warna || 'Standar'} // Menggunakan warna sebagai tipe, beri fallback jika kosong
-                plate={vehicle.nomor_polisi}
-              />
+            kendaraanList.map((vehicle) => (
+              <VehicleCard
+  key={vehicle.kendaraan_id}
+  name={`${vehicle.merek} ${vehicle.model}`}
+  year={vehicle.tahun.toString()}
+  type={vehicle.warna ?? 'Standar'}
+  plate={vehicle.nomor_polisi}
+  onPressEdit={() =>
+    router.push(
+      `/(beranda)/kendaraan/${vehicle.kendaraan_id}/edit`
+    )
+  }
+  onPressDelete={() => {
+    setSelectedVehicle(vehicle)
+    setShowDeleteModal(true)
+  }}
+/>
             ))
           )}
 
@@ -85,7 +110,51 @@ export default function ProfileScreen() {
           <LogoutButton />
         </>
       )}
+<Modal
+  visible={showDeleteModal}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setShowDeleteModal(false)}
+>
+  <View style={styles.overlay}>
+    <View style={styles.modalBox}>
+      <View style={styles.iconWrap}>
+        <Ionicons name="trash-outline" size={32} color="#EF4444" />
+      </View>
 
+      <Text style={styles.modalTitle}>Hapus Kendaraan?</Text>
+
+      <Text style={styles.modalMessage}>
+        <Text style={{ fontWeight: '700' }}>
+          {selectedVehicle?.merek} {selectedVehicle?.model}
+        </Text>
+        {" "}({selectedVehicle?.nomor_polisi}) akan dihapus permanen.
+      </Text>
+
+      <View style={styles.modalActions}>
+        <TouchableOpacity
+          style={styles.btnBatal}
+          onPress={() => setShowDeleteModal(false)}
+        >
+          <Text style={styles.btnBatalText}>Batal</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.btnHapus}
+          onPress={() => {
+            if (!selectedVehicle?.kendaraan_id) return
+          
+            deleteKendaraanMutation.mutate(
+              selectedVehicle.kendaraan_id
+            )
+          }}
+        >
+          <Text style={styles.btnHapusText}>Ya, Hapus</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
     </ScrollView>
   )
 }
@@ -128,5 +197,77 @@ const styles = StyleSheet.create({
   addText: {
     color: '#3B7BF6',
     fontWeight: 'bold',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
+  },
+  
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1a1a2e',
+  },
+  
+  modalMessage: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    width: '100%',
+  },
+  
+  btnBatal: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  
+  btnBatalText: {
+    color: '#555',
+    fontWeight: '600',
+  },
+  
+  btnHapus: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  
+  btnHapusText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 })

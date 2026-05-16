@@ -37,11 +37,11 @@
  // ── Komponen ──────────────────────────────────────────────────
  
  interface KendaraanFormProps {
-   initialValues?: KendaraanRequest;  // diisi saat mode edit
+   initialValues?: KendaraanRequest;  
    onSubmit: (payload: KendaraanRequest) => void;
    isLoading: boolean;
-   submitLabel?: string;              // "Simpan" atau "Perbarui"
-   errorMessage?: string | null;      // error dari API
+   submitLabel?: string;            
+   errorMessage?: string | null;   
  }
  
  const DEFAULT_VALUES: KendaraanRequest = {
@@ -70,7 +70,7 @@
          field === "tahun"
            ? parseInt(value) || 0
            : value === ""
-           ? null   // field opsional → kirim null kalau kosong
+           ? null 
            : value,
      }));
      setErrors((prev) => ({ ...prev, [field]: undefined }));

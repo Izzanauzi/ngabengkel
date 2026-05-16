@@ -1,28 +1,21 @@
-/**
- * components/kendaraan/KendaraanCard.tsx
- *
- * Menampilkan satu item kendaraan dalam list.
- * Tidak ada API call di sini — data diterima lewat props.
- */
-
- import React from "react";
- import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
- import { Kendaraan } from "../../@types/kendaraan.types";
+import React, { useState } from "react";
+ import {Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Kendaraan } from "../../@types/kendaraan.types";
+import { Ionicons } from "@expo/vector-icons";
  
  interface KendaraanCardProps {
-   kendaraan: Kendaraan;
-   onPressDetail: (kendaraanId: string) => void;
-   onPressEdit: (kendaraanId: string) => void;
-   onPressDelete: (kendaraanId: string) => void;
- }
+  kendaraan: Kendaraan;
+  onPressDetail: (kendaraanId: string) => void;
+  onPressEdit: (kendaraanId: string) => void;
+  onPressDelete: (kendaraanId: string) => void;
+}
  
  export function KendaraanCard({
-   kendaraan,
-   onPressDetail,
-   onPressEdit,
-   onPressDelete,
- }: KendaraanCardProps) {
+  kendaraan, onPressDetail, onPressEdit, onPressDelete,
+}: KendaraanCardProps) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
    return (
+     <>
      <TouchableOpacity
        style={styles.card}
        onPress={() => onPressDetail(kendaraan.kendaraan_id)}
@@ -53,19 +46,73 @@
        <View style={styles.actions}>
          <TouchableOpacity
            style={[styles.btn, styles.btnEdit]}
-           onPress={() => onPressEdit(kendaraan.kendaraan_id)}
+           onPress={() => {
+            console.log('Edit ditekan:', kendaraan.kendaraan_id) // ← tambah ini
+            onPressEdit(kendaraan.kendaraan_id)
+          }}
          >
            <Text style={styles.btnEditText}>Edit</Text>
          </TouchableOpacity>
  
          <TouchableOpacity
-           style={[styles.btn, styles.btnDelete]}
-           onPress={() => onPressDelete(kendaraan.kendaraan_id)}
-         >
+            style={[styles.btn, styles.btnDelete]}
+            onPress={() => {
+              console.log('Hapus ditekan') // ← tambah ini
+              setShowDeleteModal(true)
+            }}
+          >
            <Text style={styles.btnDeleteText}>Hapus</Text>
          </TouchableOpacity>
        </View>
      </TouchableOpacity>
+
+     {/* Modal konfirmasi hapus */}
+     <Modal
+     visible={showDeleteModal}
+     transparent
+     animationType="fade"
+     onRequestClose={() => setShowDeleteModal(false)}
+   >
+     <View style={styles.modalOverlay}>
+       <View style={styles.modalBox}>
+         {/* Icon */}
+         <View style={styles.modalIconWrap}>
+           <Ionicons name="trash-outline" size={32} color="#EF4444" />
+         </View>
+
+         <Text style={styles.modalTitle}>Hapus Kendaraan?</Text>
+         <Text style={styles.modalMessage}>
+           <Text style={{ fontWeight: '700' }}>
+             {kendaraan.merek} {kendaraan.model}
+           </Text>
+           {" "}({kendaraan.nomor_polisi}) akan dihapus secara permanen.{"\n"}
+           Kendaraan dengan servis aktif tidak dapat dihapus.
+         </Text>
+
+         <View style={styles.modalActions}>
+           {/* Batal */}
+           <TouchableOpacity
+             style={styles.btnBatal}
+             onPress={() => setShowDeleteModal(false)}
+           >
+             <Text style={styles.btnBatalText}>Batal</Text>
+           </TouchableOpacity>
+
+           {/* Hapus */}
+           <TouchableOpacity
+             style={styles.btnHapus}
+             onPress={() => {
+               setShowDeleteModal(false)
+               onPressDelete(kendaraan.kendaraan_id)
+             }}
+           >
+             <Text style={styles.btnHapusText}>Ya, Hapus</Text>
+           </TouchableOpacity>
+         </View>
+       </View>
+     </View>
+       </Modal>
+       </>
    );
  }
  

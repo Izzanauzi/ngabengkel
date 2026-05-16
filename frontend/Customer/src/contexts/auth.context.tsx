@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       
       // Arahkan kembali ke halaman awal setelah logout
-      router.replace("/(beranda)/home"); 
+      // router.replace("/(beranda)/home"); 
     } catch (e) {
       console.error("Gagal menghapus data saat logout:", e);
     }

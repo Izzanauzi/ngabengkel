@@ -1,3 +1,4 @@
+import RequireAuth from '../../../src/components/auth/requireAuth'
 import React, { useState } from "react";
 import {
   View,
@@ -87,6 +88,7 @@ export default function MenuServis() {
   };
 
   return (
+    <RequireAuth>
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
@@ -251,7 +253,8 @@ export default function MenuServis() {
         <Ionicons name="add" size={20} color="#FFF" />
         <Text style={styles.fabText}>Booking Servis Baru</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+      </SafeAreaView>
+      </RequireAuth>
   );
 }
 
