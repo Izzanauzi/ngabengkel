@@ -4,7 +4,8 @@
  * Screen list semua kendaraan milik user.
  * Tipis — hanya rakit komponen + hubungkan hooks.
  */
-
+import RequireAuth from '../../../src/components/requireAuth';
+//  import RequireAuth from '../../../src/components/RequireAuth'
  import React, { useCallback } from "react";
  import {
    ActivityIndicator,
@@ -107,7 +108,7 @@
        <TouchableOpacity style={styles.fab} onPress={handlePressAdd}>
          <Text style={styles.fabText}>+ Tambah</Text>
        </TouchableOpacity>
-     </View>
+       </View>
    );
  }
  

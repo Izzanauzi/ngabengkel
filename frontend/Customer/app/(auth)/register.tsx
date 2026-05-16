@@ -1,18 +1,4 @@
-/**
- * app/(auth)/register.tsx
- *
- * Screen register yang sudah "tipis":
- * - Hanya punya state UI (form input, error display, loading)
- * - Validasi → panggil validateRegisterForm() dari component
- * - API call  → pakai useRegisterMutation() dari hooks
- * - Tampilan  → pakai FormField dari components/auth/
- *
- * Kalau ada bug validasi  → cek RegisterFormField.tsx
- * Kalau ada bug API       → cek auth.hooks.ts
- * Kalau ada bug tampilan  → cek di sini atau RegisterFormField.tsx
- */
-
- import React, { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
  import {
    ActivityIndicator,
    KeyboardAvoidingView,
@@ -25,8 +11,8 @@
  } from "react-native";
  import { Link } from "expo-router";
  import { FieldErrors, RegisterForm } from "@/types/auth.types";
- import { useRegisterMutation } from "../../hooks/auth.hooks";
- import { FormField, validateRegisterForm } from "../../src/components/registerFormField";
+ import { useRegisterMutation } from "../../src/hooks/auth.hooks";
+ import { FormField, validateRegisterForm } from "../../src/components/auth/registerFormField";
  
  
  const CarIcon = () => <Text style={{ fontSize: 28 }}>🚗</Text>;
@@ -40,47 +26,36 @@
  };
  
  export default function RegisterPage() {
-   // State UI
    const [form, setForm] = useState<RegisterForm>(INITIAL_FORM);
    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
    const [globalError, setGlobalError] = useState<string | null>(null);
-   const [apiErrors, setApiErrors] = useState<string[]>([]);
  
-   // Hook untuk register
    const { registerMutation } = useRegisterMutation({
-     onApiErrors: setApiErrors,
-     onGlobalError: setGlobalError,
-   });
- 
-   // Handler: update satu field form & reset error-nya
-   const handleChange = useCallback(
-     (name: keyof RegisterForm, value: string) => {
-       setForm((prev) => ({ ...prev, [name]: value }));
-       setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
-       setGlobalError(null);
-       setApiErrors([]);
-     },
-     []
-   );
- 
-   // Handler: submit
-   const handleRegister = useCallback(() => {
-     const errors = validateRegisterForm(form);
- 
-     if (Object.keys(errors).length > 0) {
-       setFieldErrors(errors);
-       return;
-     }
- 
-     registerMutation.mutate({
-       nama: form.nama,
-       email: form.email,
-       telepon: form.telepon,
-       password: form.password,
-     });
-   }, [form, registerMutation]);
- 
-   const isLoading = registerMutation.isPending;
+    onGlobalError: setGlobalError,
+  });
+
+  const handleChange = useCallback((name: keyof RegisterForm, value: string) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setGlobalError(null);
+  }, []);
+
+  const handleRegister = useCallback(() => {
+    const errors = validateRegisterForm(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    registerMutation.mutate({
+      nama: form.nama,
+      email: form.email,
+      telepon: form.telepon,
+      password: form.password,
+    });
+  }, [form, registerMutation]);
+
+  const isLoading = registerMutation.isPending;
  
    return (
      <KeyboardAvoidingView
@@ -155,19 +130,7 @@
                <Text style={styles.errorText}>{globalError}</Text>
              </View>
            )}
- 
-           {/* API errors (list) */}
-           {apiErrors.length > 0 && (
-             <View style={styles.errorBox}>
-               <Text style={styles.errorIcon}>⚠️</Text>
-               <View style={{ flex: 1 }}>
-                 {apiErrors.map((err, i) => (
-                   <Text key={i} style={styles.errorText}>• {err}</Text>
-                 ))}
-               </View>
              </View>
-           )}
-         </View>
  
          <View style={styles.footer}>
            <TouchableOpacity
@@ -195,8 +158,7 @@
    );
  }
  
- // ── Styles ──
- 
+ // Styles
  const styles = StyleSheet.create({
    container: {
      flex: 1,

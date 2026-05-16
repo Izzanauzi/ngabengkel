@@ -1,19 +1,7 @@
-/**
- * components/auth/RegisterFormField.tsx
- *
- * Berisi:
- * - FormField    → komponen input reusable
- * - validate     → fungsi validasi form register
- *
- * Tidak ada API call di sini. Hanya UI dan validasi lokal.
- */
+import React from "react";
+import { StyleSheet, Text, TextInput, View } from "react-native";
+import { FieldErrors, RegisterForm } from "@/types/auth.types";
 
- import React from "react";
- import { StyleSheet, Text, TextInput, View } from "react-native";
- import { FieldErrors, RegisterForm } from "@/types/auth.types";
- 
- // ── FormField component ───────────────────────────────────────
- 
  interface FormFieldProps {
    label: string;
    placeholder: string;
@@ -87,8 +75,7 @@
    return errors;
  }
  
- // ──────────────────── Styles ────────────────────────
- 
+ // Styles 
  const styles = StyleSheet.create({
    fieldWrapper: {
      marginBottom: 12,
