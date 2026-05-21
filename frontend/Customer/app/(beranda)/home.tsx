@@ -74,7 +74,7 @@ export default function Beranda() {
   const isLogin = !!token;
 
   const { slots, jumlahAntrian, isLoading: scheduleLoading, refetch: refetchSchedule } = useGetSchedule();
-  const { kendaraanList, isLoading: kendaraanLoading, refetch: refetchKendaraan } = useGetAllKendaraan();
+  const { kendaraanList, isLoading: kendaraanLoading, refetch: refetchKendaraan } = useGetAllKendaraan(user?.user_id ?? '');
   const { workOrders, isLoading: woLoading, refetch: refetchWO } = useGetAllWorkOrders();
   const { bookings, isLoading: bookingLoading, refetch: refetchBooking } = useGetAllBookings();
   const { history, isLoading: historyLoading, refetch: refetchHistory } = useGetHistory();

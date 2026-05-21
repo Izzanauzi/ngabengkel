@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCreateBooking } from "../../../src/hooks/booking.hooks";
 import { useGetAllKendaraan } from "../../../src/hooks/kendaraan.hooks";
+import { useAuth } from "../../../src/contexts/auth.context";
 import { Kendaraan } from "../../../src/@types/kendaraan.types";
 import { useToast } from "../../../src/contexts/toast.context";
 
@@ -43,9 +44,10 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 export default function BookingServis() {
   const today = new Date();
+  const { user } = useAuth();
 
   // ── Data kendaraan dari API ───────────────────────────────────────────────
-  const { kendaraanList: kendaraans, isLoading: isLoadingKendaraan } = useGetAllKendaraan();
+  const { kendaraanList: kendaraans, isLoading: isLoadingKendaraan } = useGetAllKendaraan(user?.user_id ?? '');
   const { showSuccess } = useToast();
 
   const [selectedKendaraanId, setSelectedKendaraanId] = useState<string | null>(null);
