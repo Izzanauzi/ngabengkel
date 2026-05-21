@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 
 // 1. Mendefinisikan struktur data User agar sesuai dengan backend Go
 export interface UserData {
@@ -26,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // 3. Memuat data dari AsyncStorage saat aplikasi pertama kali dijalankan
   useEffect(() => {
@@ -70,12 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await AsyncStorage.removeItem("access_token");
       await AsyncStorage.removeItem("user_data");
-      
+
       setToken(null);
       setUser(null);
-      
+      queryClient.clear();
+
       // Arahkan kembali ke halaman awal setelah logout
-      // router.replace("/(beranda)/home"); 
+      // router.replace("/(beranda)/home");
     } catch (e) {
       console.error("Gagal menghapus data saat logout:", e);
     }

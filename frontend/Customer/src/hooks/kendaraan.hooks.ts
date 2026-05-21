@@ -30,13 +30,14 @@ interface UseDeleteKendaraanMutationProps {
 }
 
 const QUERY_KEYS = {
-  all: ["getAllKendaraan"],
+  all: (userId: string) => ["getAllKendaraan", userId],
+  allPrefix: ["getAllKendaraan"],
   byId: (id: string) => ["getKendaraanById", id],
 } as const;
 
-export function useGetAllKendaraan() {
+export function useGetAllKendaraan(userId: string) {
   const { data, isLoading, isPending, refetch, status, error } = useQuery<Kendaraan[]>({
-    queryKey: QUERY_KEYS.all,
+    queryKey: QUERY_KEYS.all(userId),
     queryFn: async () => {
       console.log('queryFn dipanggil') // ← cek apakah function ini jalan
       // const result = await baseFetch<Kendaraan[]>({...})
@@ -96,7 +97,7 @@ export function useCreateKendaraanMutation({ successAction, onError }: UseCreate
         options: { showError: false },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allPrefix })
       successAction()
     },
     onError: (error: any) => {
@@ -119,7 +120,7 @@ export function useUpdateKendaraanMutation({ successAction, onError }: UseUpdate
         options: { showError: false },
       }),
     onSuccess: (_, { kendaraanId }) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allPrefix })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.byId(kendaraanId) })
       successAction()
     },
@@ -142,7 +143,7 @@ export function useDeleteKendaraanMutation({ successAction, onError }: UseDelete
         options: { showError: false },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.allPrefix })
       successAction()
     },
     onError: (error: any) => {

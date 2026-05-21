@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
@@ -20,7 +20,7 @@ export default function ProfileScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Kendaraan | null>(null);
 
-  const { kendaraanList, isLoading } = useGetAllKendaraan();
+  const { kendaraanList, isLoading } = useGetAllKendaraan(user?.user_id ?? '');
 
   const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
     successAction: () => {
@@ -37,76 +37,7 @@ export default function ProfileScreen() {
     router.push("/(beranda)/kendaraan/create");
   }, [router]);
 
-  return (
-    <RequireAuth>
-    <ScrollView style={styles.container}>
-      
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Profil Saya</Text>
-        <Ionicons name="create-outline" size={22} color="#3B7BF6" />
-      </View>
-
-      {/* 2. Panggil Komponen ProfileCard dan lemparkan data user serta jumlah kendaraan */}
-      <ProfileCard 
-        isLogin={isLogin} 
-        userData={user} 
-        vehicleCount={kendaraanList?.length || 0} 
-      />
-
-      {/* ===== KONTEN SETELAH LOGIN ===== */}
-      {isLogin && (
-        <>
-          {/* KENDARAAN HEADER */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Kendaraan Saya</Text>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/(beranda)/kendaraan')}>
-              <Text style={styles.link}>Lihat semua </Text>
-              <Ionicons name="chevron-forward" size={14} color="#3B7BF6" />
-            </TouchableOpacity>
-          </View>
-
-          {/* 3. LIST KENDARAAN - Menggunakan data dari backend dengan indikator loading */}
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#3B7BF6" style={{ marginVertical: 20 }} />
-          ) : (
-            kendaraanList.map((vehicle) => (
-              <VehicleCard
-  key={vehicle.kendaraan_id}
-  name={`${vehicle.merek} ${vehicle.model}`}
-  year={vehicle.tahun.toString()}
-  type={vehicle.warna ?? 'Standar'}
-  plate={vehicle.nomor_polisi}
-  onPressEdit={() =>
-    router.push(
-      `/(beranda)/kendaraan/${vehicle.kendaraan_id}/edit`
-    )
-  }
-  onPressDelete={() => {
-    setSelectedVehicle(vehicle)
-    setShowDeleteModal(true)
-  }}
-/>
-            ))
-          )}
-
-          {/* TOMBOL TAMBAH KENDARAAN */}
-          <TouchableOpacity style={styles.addButton} onPress={handlePressAdd}>
-            <Text style={styles.addText}>+ Tambah Kendaraan</Text>
-          </TouchableOpacity>
-
-          {/* Panggil Komponen Menu & Logout */}
-          <MenuList />
-          <LogoutButton />
-        </>
-      )}
-<Modal
-  visible={showDeleteModal}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setShowDeleteModal(false)}
->
-  <View style={styles.overlay}>
+  const modalBox = (
     <View style={styles.modalBox}>
       <View style={styles.iconWrap}>
         <Ionicons name="trash-outline" size={32} color="#EF4444" />
@@ -133,19 +64,96 @@ export default function ProfileScreen() {
           style={styles.btnHapus}
           onPress={() => {
             if (!selectedVehicle?.kendaraan_id) return
-          
-            deleteKendaraanMutation.mutate(
-              selectedVehicle.kendaraan_id
-            )
+            deleteKendaraanMutation.mutate(selectedVehicle.kendaraan_id)
           }}
         >
           <Text style={styles.btnHapusText}>Ya, Hapus</Text>
         </TouchableOpacity>
       </View>
     </View>
-  </View>
-</Modal>
-    </ScrollView>
+  )
+
+  return (
+    <RequireAuth>
+      <>
+        <ScrollView style={styles.container}>
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Profil Saya</Text>
+            <Ionicons name="create-outline" size={22} color="#3B7BF6" />
+          </View>
+
+          {/* 2. Panggil Komponen ProfileCard dan lemparkan data user serta jumlah kendaraan */}
+          <ProfileCard
+            isLogin={isLogin}
+            userData={user}
+            vehicleCount={kendaraanList?.length || 0}
+          />
+
+          {/* ===== KONTEN SETELAH LOGIN ===== */}
+          {isLogin && (
+            <>
+              {/* KENDARAAN HEADER */}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Kendaraan Saya</Text>
+                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }} onPress={() => router.push('/(beranda)/kendaraan')}>
+                  <Text style={styles.link}>Lihat semua </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#3B7BF6" />
+                </TouchableOpacity>
+              </View>
+
+              {/* 3. LIST KENDARAAN */}
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#3B7BF6" style={{ marginVertical: 20 }} />
+              ) : (
+                kendaraanList.map((vehicle) => (
+                  <VehicleCard
+                    key={vehicle.kendaraan_id}
+                    name={`${vehicle.merek} ${vehicle.model}`}
+                    year={vehicle.tahun.toString()}
+                    type={vehicle.warna ?? 'Standar'}
+                    plate={vehicle.nomor_polisi}
+                    onPressEdit={() => router.push(`/(beranda)/kendaraan/${vehicle.kendaraan_id}/edit`)}
+                    onPressDelete={() => {
+                      setSelectedVehicle(vehicle)
+                      setShowDeleteModal(true)
+                    }}
+                  />
+                ))
+              )}
+
+              {/* TOMBOL TAMBAH KENDARAAN */}
+              <TouchableOpacity style={styles.addButton} onPress={handlePressAdd}>
+                <Text style={styles.addText}>+ Tambah Kendaraan</Text>
+              </TouchableOpacity>
+
+              {/* Panggil Komponen Menu & Logout */}
+              <MenuList />
+              <LogoutButton />
+            </>
+          )}
+        </ScrollView>
+
+        {Platform.OS === 'web' ? (
+          showDeleteModal && (
+            <View style={styles.webOverlay}>
+              {modalBox}
+            </View>
+          )
+        ) : (
+          <Modal
+            visible={showDeleteModal}
+            transparent
+            statusBarTranslucent
+            animationType="fade"
+            onRequestClose={() => setShowDeleteModal(false)}
+          >
+            <View style={styles.overlay}>
+              {modalBox}
+            </View>
+          </Modal>
+        )}
+      </>
     </RequireAuth>
   )
 }
@@ -195,6 +203,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+  },
+  webOverlay: {
+    position: 'fixed' as any,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 9999,
   },
   
   modalBox: {

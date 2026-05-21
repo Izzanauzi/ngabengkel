@@ -10,12 +10,14 @@ import React, { useCallback } from "react";
  } from "react-native";
  import { router } from "expo-router";
  import { useGetAllKendaraan, useDeleteKendaraanMutation } from "../../../src/hooks/kendaraan.hooks";
+ import { useAuth } from "../../../src/contexts/auth.context";
  import { KendaraanCard } from "../../../src/components/kendaraan/kendaraanCard";
  import { Kendaraan } from "../../../src/@types/kendaraan.types";
  
  export default function KendaraanScreen() {
+   const { user } = useAuth();
    // Data
-   const { kendaraanList, isLoading, refetch } = useGetAllKendaraan();
+   const { kendaraanList, isLoading, refetch } = useGetAllKendaraan(user?.user_id ?? '');
  
    // Mutation
    const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
