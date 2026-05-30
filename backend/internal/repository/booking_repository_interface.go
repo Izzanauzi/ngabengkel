@@ -8,4 +8,7 @@ type BookingRepositoryInterface interface {
 	Create(b *model.Booking) error
 	UpdateStatus(bookingID, status string) error
 	HasActiveBooking(kendaraanID string) (bool, error)
+	GetPending() ([]model.Booking, error)
+	Accept(bookingID string) error
+	Reject(bookingID, alasanTolak string) error
 }
