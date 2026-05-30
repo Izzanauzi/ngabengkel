@@ -42,6 +42,7 @@ func main() {
 	kendaraanHandler := &handler.KendaraanHandler{KendaraanService: kendaraanService}
 	bookingHandler := &handler.BookingHandler{BookingService: bookingService}
 	workOrderHandler := &handler.WorkOrderHandler{WorkOrderService: workOrderService}
+	adminBookingHandler := &handler.AdminBookingHandler{BookingRepo: bookingRepo}
 
 	// Booking routes
 
@@ -82,6 +83,11 @@ func main() {
 	mux.HandleFunc("GET /api/v1/work-orders/{id}", middleware.RequireAuth(workOrderHandler.GetByID))
 	mux.HandleFunc("POST /api/v1/work-orders/{id}/approve-action", middleware.RequireAuth(workOrderHandler.ApproveAction))
 	mux.HandleFunc("POST /api/v1/work-orders/{id}/reject-action", middleware.RequireAuth(workOrderHandler.RejectAction))
+
+	// Admin Booking routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/bookings", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.GetPending)))
+	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/accept", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Accept)))
+	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/reject", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Reject)))
 
 	// 7. Nyalakan server
 	addr := ":" + cfg.AppPort

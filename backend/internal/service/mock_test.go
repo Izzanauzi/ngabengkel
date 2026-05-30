@@ -161,6 +161,9 @@ type mockBookingRepo struct {
 	createFn           func(*model.Booking) error
 	updateStatusFn     func(string, string) error
 	hasActiveBookingFn func(string) (bool, error)
+	getPendingFn       func() ([]model.Booking, error)
+	acceptFn           func(string) error
+	rejectFn           func(string, string) error
 }
 
 func (m *mockBookingRepo) GetByUserID(userID string) ([]model.Booking, error) {
@@ -192,4 +195,22 @@ func (m *mockBookingRepo) HasActiveBooking(kendaraanID string) (bool, error) {
 		return m.hasActiveBookingFn(kendaraanID)
 	}
 	return false, nil
+}
+func (m *mockBookingRepo) GetPending() ([]model.Booking, error) {
+	if m.getPendingFn != nil {
+		return m.getPendingFn()
+	}
+	return []model.Booking{}, nil
+}
+func (m *mockBookingRepo) Accept(bookingID string) error {
+	if m.acceptFn != nil {
+		return m.acceptFn(bookingID)
+	}
+	return nil
+}
+func (m *mockBookingRepo) Reject(bookingID, alasanTolak string) error {
+	if m.rejectFn != nil {
+		return m.rejectFn(bookingID, alasanTolak)
+	}
+	return nil
 }
