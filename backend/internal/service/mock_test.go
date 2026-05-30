@@ -214,3 +214,51 @@ func (m *mockBookingRepo) Reject(bookingID, alasanTolak string) error {
 	}
 	return nil
 }
+
+// ── mockMekanikRepo ───────────────────────────────────────────────────────────
+
+type mockMekanikRepo struct {
+	getAllFn      func() ([]model.Mekanik, error)
+	findByIDFn   func(string) (*model.Mekanik, error)
+	createFn     func(*model.Mekanik) error
+	updateFn     func(*model.Mekanik) error
+	deleteFn     func(string) error
+	hasActiveWOFn func(string) (bool, error)
+}
+
+func (m *mockMekanikRepo) GetAll() ([]model.Mekanik, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.Mekanik{}, nil
+}
+func (m *mockMekanikRepo) FindByID(mekanikID string) (*model.Mekanik, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(mekanikID)
+	}
+	return nil, nil
+}
+func (m *mockMekanikRepo) Create(mekanik *model.Mekanik) error {
+	if m.createFn != nil {
+		return m.createFn(mekanik)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) Update(mekanik *model.Mekanik) error {
+	if m.updateFn != nil {
+		return m.updateFn(mekanik)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) Delete(mekanikID string) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(mekanikID)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) HasActiveWO(mekanikID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(mekanikID)
+	}
+	return false, nil
+}
