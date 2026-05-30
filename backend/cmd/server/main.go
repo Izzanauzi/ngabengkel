@@ -26,6 +26,7 @@ func main() {
 	kendaraanRepo := &repository.KendaraanRepository{DB: db}
 	bookingRepo := &repository.BookingRepository{DB: db}
 	workOrderRepo := &repository.WorkOrderRepository{DB: db}
+	mekanikRepo := &repository.MekanikRepository{DB: db}
 
 	// 4. Inisialisasi service
 	authService := &service.AuthService{UserRepo: userRepo}
@@ -35,6 +36,7 @@ func main() {
 		KendaraanRepo: kendaraanRepo,
 	}
 	workOrderService := &service.WorkOrderService{WorkOrderRepo: workOrderRepo}
+	mekanikService := &service.MekanikService{MekanikRepo: mekanikRepo}
 
 	// 5. Inisialisasi handler
 	authHandler := &handler.AuthHandler{AuthService: authService}
@@ -43,6 +45,7 @@ func main() {
 	bookingHandler := &handler.BookingHandler{BookingService: bookingService}
 	workOrderHandler := &handler.WorkOrderHandler{WorkOrderService: workOrderService}
 	adminBookingHandler := &handler.AdminBookingHandler{BookingRepo: bookingRepo}
+	mekanikHandler := &handler.MekanikHandler{MekanikService: mekanikService}
 
 	// Booking routes
 
@@ -88,6 +91,13 @@ func main() {
 	mux.HandleFunc("GET /api/v1/admin/bookings", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.GetPending)))
 	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/accept", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Accept)))
 	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/reject", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Reject)))
+
+	// Admin Mekanik routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/mekaniks", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.GetAll)))
+	mux.HandleFunc("POST /api/v1/admin/mekaniks", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.Create)))
+	mux.HandleFunc("GET /api/v1/admin/mekaniks/{id}", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.GetByID)))
+	mux.HandleFunc("PUT /api/v1/admin/mekaniks/{id}", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.Update)))
+	mux.HandleFunc("DELETE /api/v1/admin/mekaniks/{id}", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.Delete)))
 
 	// 7. Nyalakan server
 	addr := ":" + cfg.AppPort
