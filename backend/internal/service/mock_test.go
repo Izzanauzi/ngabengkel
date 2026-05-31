@@ -407,3 +407,30 @@ func (m *mockSlotRepo) GetQueue() ([]model.QueueItem, error) {
 	}
 	return []model.QueueItem{}, nil
 }
+
+// ── mockTransactionRepo ───────────────────────────────────────────────────────
+
+type mockTransactionRepo struct {
+	createFn       func(*model.Transaction) error
+	getByWOIDFn    func(string) (*model.Transaction, error)
+	getByPeriodeFn func(string, string) ([]model.Transaction, error)
+}
+
+func (m *mockTransactionRepo) Create(t *model.Transaction) error {
+	if m.createFn != nil {
+		return m.createFn(t)
+	}
+	return nil
+}
+func (m *mockTransactionRepo) GetByWOID(woID string) (*model.Transaction, error) {
+	if m.getByWOIDFn != nil {
+		return m.getByWOIDFn(woID)
+	}
+	return nil, nil
+}
+func (m *mockTransactionRepo) GetByPeriode(from, to string) ([]model.Transaction, error) {
+	if m.getByPeriodeFn != nil {
+		return m.getByPeriodeFn(from, to)
+	}
+	return []model.Transaction{}, nil
+}
