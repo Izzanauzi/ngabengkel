@@ -37,6 +37,10 @@ func main() {
 	}
 	workOrderService := &service.WorkOrderService{WorkOrderRepo: workOrderRepo}
 	mekanikService := &service.MekanikService{MekanikRepo: mekanikRepo}
+	adminWOService := &service.AdminWorkOrderService{
+		WorkOrderRepo: workOrderRepo,
+		BookingRepo:   bookingRepo,
+	}
 
 	// 5. Inisialisasi handler
 	authHandler := &handler.AuthHandler{AuthService: authService}
@@ -46,6 +50,7 @@ func main() {
 	workOrderHandler := &handler.WorkOrderHandler{WorkOrderService: workOrderService}
 	adminBookingHandler := &handler.AdminBookingHandler{BookingRepo: bookingRepo}
 	mekanikHandler := &handler.MekanikHandler{MekanikService: mekanikService}
+	adminWOHandler := &handler.AdminWorkOrderHandler{AdminWOService: adminWOService}
 
 	// Booking routes
 
@@ -91,6 +96,15 @@ func main() {
 	mux.HandleFunc("GET /api/v1/admin/bookings", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.GetPending)))
 	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/accept", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Accept)))
 	mux.HandleFunc("POST /api/v1/admin/bookings/{id}/reject", middleware.RequireAuth(middleware.RequireRole("admin", adminBookingHandler.Reject)))
+
+	// Admin Work Order routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/work-orders", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.GetAll)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Create)))
+	mux.HandleFunc("GET /api/v1/admin/work-orders/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.GetByID)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/start", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Start)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/progress", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.UploadProgress)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/suspend", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Suspend)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/finish", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Finish)))
 
 	// Admin Mekanik routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/mekaniks", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.GetAll)))

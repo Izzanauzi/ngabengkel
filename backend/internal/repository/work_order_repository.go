@@ -3,7 +3,10 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/ngabengkel/backend/internal/model"
 )
 
@@ -111,6 +114,98 @@ func (r *WorkOrderRepository) UpdateStatus(woID, status string) error {
 		status, woID,
 	)
 	return err
+}
+
+// GetAll — semua WO (admin), urut terbaru
+func (r *WorkOrderRepository) GetAll() ([]model.WorkOrder, error) {
+	query := `
+		SELECT COALESCE(wo.wo_id, ''), COALESCE(wo.nomor_wo, ''),
+		       COALESCE(wo.user_id, ''), COALESCE(wo.kendaraan_id, ''),
+		       wo.booking_id, wo.mekanik_id,
+		       wo.deskripsi_kerusakan, wo.estimasi_biaya, wo.biaya_jasa,
+		       COALESCE(wo.status, ''), wo.created_at,
+		       k.merek, k.model, k.nomor_polisi
+		FROM ngabengkel.work_orders wo
+		JOIN ngabengkel.kendaraan k ON k.kendaraan_id = wo.kendaraan_id
+		ORDER BY wo.created_at DESC
+	`
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []model.WorkOrder{}
+	for rows.Next() {
+		wo, err := scanWorkOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, wo)
+	}
+	return result, nil
+}
+
+// Create — buat WO baru + entry queue dalam satu transaksi
+func (r *WorkOrderRepository) Create(wo *model.WorkOrder) error {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var userID sql.NullString
+	if wo.UserID != "" {
+		userID = sql.NullString{String: wo.UserID, Valid: true}
+	}
+
+	err = tx.QueryRow(`
+		INSERT INTO ngabengkel.work_orders
+			(wo_id, nomor_wo, user_id, kendaraan_id, booking_id, mekanik_id,
+			 deskripsi_kerusakan, estimasi_biaya, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		RETURNING created_at
+	`, wo.WoID, wo.NomorWO, userID, wo.KendaraanID, wo.BookingID, wo.MekanikID,
+		wo.DeskripsiKerusakan, wo.EstimasiBiaya, wo.Status,
+	).Scan(&wo.CreatedAt)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO ngabengkel.queue (queue_id, wo_id, status, created_at)
+		VALUES ($1, $2, 'menunggu', NOW())
+	`, uuid.New().String(), wo.WoID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// AddProgress — tambah entri progress WO
+func (r *WorkOrderRepository) AddProgress(p *model.Progress) error {
+	return r.DB.QueryRow(`
+		INSERT INTO ngabengkel.wo_progress
+			(progress_id, wo_id, deskripsi, tipe, foto_url, est_biaya_tambahan, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		RETURNING created_at
+	`, p.ProgressID, p.WoID, p.Deskripsi, p.Tipe, p.FotoURL, p.EstBiayaTambahan,
+	).Scan(&p.CreatedAt)
+}
+
+// GenerateNomorWO — buat nomor WO unik format WO-YYYYMMDD-XXX
+func (r *WorkOrderRepository) GenerateNomorWO() (string, error) {
+	var count int
+	err := r.DB.QueryRow(`
+		SELECT COUNT(*) FROM ngabengkel.work_orders
+		WHERE DATE(created_at) = CURRENT_DATE
+	`).Scan(&count)
+	if err != nil {
+		return "", err
+	}
+	today := time.Now().Format("20060102")
+	return fmt.Sprintf("WO-%s-%03d", today, count+1), nil
 }
 
 // GetProgressByWOID — semua progress untuk satu WO, urut dari terlama
