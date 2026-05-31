@@ -290,3 +290,65 @@ func (m *mockMekanikRepo) HasActiveWO(mekanikID string) (bool, error) {
 	}
 	return false, nil
 }
+
+// ── mockInventoryRepo ─────────────────────────────────────────────────────────
+
+type mockInventoryRepo struct {
+	getAllFn        func() ([]model.InventoryItem, error)
+	findByIDFn     func(string) (*model.InventoryItem, error)
+	createFn       func(*model.InventoryItem) error
+	updateFn       func(*model.InventoryItem) error
+	deleteFn       func(string) error
+	updateStokFn   func(string, int) error
+	addItemToWOFn  func(*model.WOItem) error
+	getWOItemsFn   func(string) ([]model.WOItem, error)
+}
+
+func (m *mockInventoryRepo) GetAll() ([]model.InventoryItem, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.InventoryItem{}, nil
+}
+func (m *mockInventoryRepo) FindByID(inventoryID string) (*model.InventoryItem, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(inventoryID)
+	}
+	return nil, nil
+}
+func (m *mockInventoryRepo) Create(item *model.InventoryItem) error {
+	if m.createFn != nil {
+		return m.createFn(item)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) Update(item *model.InventoryItem) error {
+	if m.updateFn != nil {
+		return m.updateFn(item)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) Delete(inventoryID string) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(inventoryID)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) UpdateStok(inventoryID string, jumlah int) error {
+	if m.updateStokFn != nil {
+		return m.updateStokFn(inventoryID, jumlah)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) AddItemToWO(woItem *model.WOItem) error {
+	if m.addItemToWOFn != nil {
+		return m.addItemToWOFn(woItem)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) GetWOItems(woID string) ([]model.WOItem, error) {
+	if m.getWOItemsFn != nil {
+		return m.getWOItemsFn(woID)
+	}
+	return []model.WOItem{}, nil
+}
