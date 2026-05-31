@@ -352,3 +352,58 @@ func (m *mockInventoryRepo) GetWOItems(woID string) ([]model.WOItem, error) {
 	}
 	return []model.WOItem{}, nil
 }
+
+// ── mockSlotRepo ──────────────────────────────────────────────────────────────
+
+type mockSlotRepo struct {
+	getAllSlotsFn  func() ([]model.Slot, error)
+	countAntrianFn func() (int, error)
+	findByIDFn    func(string) (*model.Slot, error)
+	updateStatusFn func(string, string) error
+	assignWOFn    func(string, string) error
+	hasActiveWOFn func(string) (bool, error)
+	getQueueFn    func() ([]model.QueueItem, error)
+}
+
+func (m *mockSlotRepo) GetAllSlots() ([]model.Slot, error) {
+	if m.getAllSlotsFn != nil {
+		return m.getAllSlotsFn()
+	}
+	return []model.Slot{}, nil
+}
+func (m *mockSlotRepo) CountAntrian() (int, error) {
+	if m.countAntrianFn != nil {
+		return m.countAntrianFn()
+	}
+	return 0, nil
+}
+func (m *mockSlotRepo) FindByID(slotID string) (*model.Slot, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(slotID)
+	}
+	return nil, nil
+}
+func (m *mockSlotRepo) UpdateStatus(slotID, status string) error {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(slotID, status)
+	}
+	return nil
+}
+func (m *mockSlotRepo) AssignWO(slotID, woID string) error {
+	if m.assignWOFn != nil {
+		return m.assignWOFn(slotID, woID)
+	}
+	return nil
+}
+func (m *mockSlotRepo) HasActiveWO(slotID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(slotID)
+	}
+	return false, nil
+}
+func (m *mockSlotRepo) GetQueue() ([]model.QueueItem, error) {
+	if m.getQueueFn != nil {
+		return m.getQueueFn()
+	}
+	return []model.QueueItem{}, nil
+}

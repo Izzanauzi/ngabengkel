@@ -39,6 +39,7 @@ func main() {
 	workOrderService := &service.WorkOrderService{WorkOrderRepo: workOrderRepo}
 	mekanikService := &service.MekanikService{MekanikRepo: mekanikRepo}
 	inventoryService := &service.InventoryService{InventoryRepo: inventoryRepo}
+	slotService := &service.SlotService{SlotRepo: slotRepo, WorkOrderRepo: workOrderRepo}
 	adminWOService := &service.AdminWorkOrderService{
 		WorkOrderRepo: workOrderRepo,
 		BookingRepo:   bookingRepo,
@@ -54,6 +55,7 @@ func main() {
 	mekanikHandler := &handler.MekanikHandler{MekanikService: mekanikService}
 	inventoryHandler := &handler.InventoryHandler{InventoryService: inventoryService}
 	adminWOHandler := &handler.AdminWorkOrderHandler{AdminWOService: adminWOService}
+	slotHandler := &handler.SlotHandler{SlotService: slotService}
 
 	// Booking routes
 
@@ -116,6 +118,12 @@ func main() {
 	mux.HandleFunc("PUT /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Update)))
 	mux.HandleFunc("DELETE /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Delete)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/items", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.AddToWO)))
+
+	// Admin Slot & Queue routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/slots", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.GetAll)))
+	mux.HandleFunc("PUT /api/v1/admin/slots/{id}", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.UpdateStatus)))
+	mux.HandleFunc("POST /api/v1/admin/slots/{id}/assign", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.AssignWO)))
+	mux.HandleFunc("GET /api/v1/admin/queue", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.GetQueue)))
 
 	// Admin Mekanik routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/mekaniks", middleware.RequireAuth(middleware.RequireRole("admin", mekanikHandler.GetAll)))
