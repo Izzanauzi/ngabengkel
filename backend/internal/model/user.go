@@ -39,3 +39,22 @@ type ErrorResponse struct {
 	Message string   `json:"message"`
 	Errors  []string `json:"errors,omitempty"`
 }
+
+// AdminCustomerResponse — data customer untuk tampilan admin
+type AdminCustomerResponse struct {
+	UserID          string    `json:"user_id"`
+	Nama            string    `json:"nama"`
+	Email           string    `json:"email"`
+	Telepon         *string   `json:"telepon"`
+	Role            string    `json:"role"`
+	CreatedAt       time.Time `json:"created_at"`
+	JumlahKendaraan int       `json:"jumlah_kendaraan"`
+}
+
+// AdminCreateCustomerRequest — request tambah customer walk-in
+type AdminCreateCustomerRequest struct {
+	Nama     string  `json:"nama"`
+	Email    string  `json:"email"`
+	Telepon  string  `json:"telepon"`
+	Password *string `json:"password"`
+}

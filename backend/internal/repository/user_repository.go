@@ -7,6 +7,20 @@ import (
 	"github.com/ngabengkel/backend/internal/model"
 )
 
+const customerSelectCols = `
+	SELECT u.user_id, u.nama, COALESCE(u.email, '') as email,
+	       u.telepon, u.role, u.created_at,
+	       COUNT(k.kendaraan_id) as jumlah_kendaraan
+	FROM ngabengkel.users u
+	LEFT JOIN ngabengkel.kendaraan k ON k.user_id = u.user_id
+`
+
+func scanCustomer(s interface{ Scan(...any) error }) (model.AdminCustomerResponse, error) {
+	var c model.AdminCustomerResponse
+	err := s.Scan(&c.UserID, &c.Nama, &c.Email, &c.Telepon, &c.Role, &c.CreatedAt, &c.JumlahKendaraan)
+	return c, err
+}
+
 type UserRepository struct {
 	DB *sql.DB
 }
@@ -63,6 +77,105 @@ func (r *UserRepository) TeleponExists(telepon string) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// GetAllCustomers — ambil semua customer dengan jumlah kendaraan
+func (r *UserRepository) GetAllCustomers() ([]model.AdminCustomerResponse, error) {
+	query := customerSelectCols + `
+		WHERE u.role = 'customer'
+		GROUP BY u.user_id, u.nama, u.email, u.telepon, u.role, u.created_at
+		ORDER BY u.created_at DESC
+	`
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	customers := []model.AdminCustomerResponse{}
+	for rows.Next() {
+		c, err := scanCustomer(rows)
+		if err != nil {
+			return nil, err
+		}
+		customers = append(customers, c)
+	}
+	return customers, nil
+}
+
+// FindCustomerByID — cari customer by ID beserta jumlah kendaraan
+func (r *UserRepository) FindCustomerByID(userID string) (*model.AdminCustomerResponse, error) {
+	query := customerSelectCols + `
+		WHERE u.user_id = $1 AND u.role = 'customer'
+		GROUP BY u.user_id, u.nama, u.email, u.telepon, u.role, u.created_at
+	`
+	c, err := scanCustomer(r.DB.QueryRow(query, userID))
+	if err == sql.ErrNoRows {
+		return nil, errors.New("customer tidak ditemukan")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// CreateWalkIn — tambah customer walk-in, email dan password nullable
+func (r *UserRepository) CreateWalkIn(user *model.User) error {
+	var email, password sql.NullString
+	if user.Email != "" {
+		email = sql.NullString{String: user.Email, Valid: true}
+	}
+	if user.Password != "" {
+		password = sql.NullString{String: user.Password, Valid: true}
+	}
+	return r.DB.QueryRow(`
+		INSERT INTO ngabengkel.users
+			(user_id, nama, email, telepon, password, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, 'customer', NOW())
+		RETURNING created_at
+	`, user.UserID, user.Nama, email, user.Telepon, password,
+	).Scan(&user.CreatedAt)
+}
+
+// UpdateCustomer — update nama dan telepon customer
+func (r *UserRepository) UpdateCustomer(userID, nama, telepon string) error {
+	result, err := r.DB.Exec(`
+		UPDATE ngabengkel.users SET nama = $1, telepon = $2
+		WHERE user_id = $3 AND role = 'customer'
+	`, nama, telepon, userID)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return errors.New("customer tidak ditemukan")
+	}
+	return nil
+}
+
+// DeleteCustomer — hapus customer
+func (r *UserRepository) DeleteCustomer(userID string) error {
+	result, err := r.DB.Exec(`
+		DELETE FROM ngabengkel.users WHERE user_id = $1 AND role = 'customer'
+	`, userID)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return errors.New("customer tidak ditemukan")
+	}
+	return nil
+}
+
+// HasActiveWO — cek apakah user punya WO yang belum selesai
+func (r *UserRepository) HasActiveWO(userID string) (bool, error) {
+	var count int
+	err := r.DB.QueryRow(`
+		SELECT COUNT(*) FROM ngabengkel.work_orders
+		WHERE user_id = $1 AND status NOT IN ('selesai', 'lunas')
+	`, userID).Scan(&count)
+	return count > 0, err
 }
 
 // Create — simpan user baru ke database
