@@ -120,6 +120,10 @@ type mockWorkOrderRepo struct {
 	findByIDFn           func(string) (*model.WorkOrderDetail, error)
 	getProgressByWOIDFn  func(string) ([]model.Progress, error)
 	updateStatusFn       func(string, string) error
+	getAllFn             func() ([]model.WorkOrder, error)
+	createFn            func(*model.WorkOrder) error
+	addProgressFn       func(*model.Progress) error
+	generateNomorWOFn   func() (string, error)
 }
 
 func (m *mockWorkOrderRepo) GetActiveByUserID(userID string) ([]model.WorkOrder, error) {
@@ -151,6 +155,30 @@ func (m *mockWorkOrderRepo) UpdateStatus(woID, status string) error {
 		return m.updateStatusFn(woID, status)
 	}
 	return nil
+}
+func (m *mockWorkOrderRepo) GetAll() ([]model.WorkOrder, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.WorkOrder{}, nil
+}
+func (m *mockWorkOrderRepo) Create(wo *model.WorkOrder) error {
+	if m.createFn != nil {
+		return m.createFn(wo)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) AddProgress(p *model.Progress) error {
+	if m.addProgressFn != nil {
+		return m.addProgressFn(p)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) GenerateNomorWO() (string, error) {
+	if m.generateNomorWOFn != nil {
+		return m.generateNomorWOFn()
+	}
+	return "WO-20260101-001", nil
 }
 
 // ── mockBookingRepo ──────────────────────────────────────────────────────────
