@@ -50,6 +50,10 @@ func main() {
 		WorkOrderRepo: workOrderRepo,
 		BookingRepo:   bookingRepo,
 	}
+	adminCustomerService := &service.AdminCustomerService{
+		UserRepo:      userRepo,
+		KendaraanRepo: kendaraanRepo,
+	}
 
 	// 5. Inisialisasi handler
 	authHandler := &handler.AuthHandler{AuthService: authService}
@@ -63,6 +67,7 @@ func main() {
 	adminWOHandler := &handler.AdminWorkOrderHandler{AdminWOService: adminWOService}
 	slotHandler := &handler.SlotHandler{SlotService: slotService}
 	paymentHandler := &handler.PaymentHandler{PaymentService: paymentService}
+	adminCustomerHandler := &handler.AdminCustomerHandler{AdminCustomerService: adminCustomerService}
 
 	// Booking routes
 
@@ -125,6 +130,13 @@ func main() {
 	mux.HandleFunc("PUT /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Update)))
 	mux.HandleFunc("DELETE /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Delete)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/items", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.AddToWO)))
+
+	// Admin Customer routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/customers", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.GetAll)))
+	mux.HandleFunc("POST /api/v1/admin/customers", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.CreateWalkIn)))
+	mux.HandleFunc("GET /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.GetByID)))
+	mux.HandleFunc("PUT /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.Update)))
+	mux.HandleFunc("DELETE /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.Delete)))
 
 	// Admin Payment & Report routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/work-orders/{id}/invoice", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetInvoice)))

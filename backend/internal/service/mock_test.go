@@ -5,10 +5,16 @@ import "github.com/ngabengkel/backend/internal/model"
 // ── mockUserRepo ─────────────────────────────────────────────────────────────
 
 type mockUserRepo struct {
-	findByEmailFn   func(string) (*model.User, error)
-	emailExistsFn   func(string) (bool, error)
-	teleponExistsFn func(string) (bool, error)
-	createFn        func(*model.User) error
+	findByEmailFn        func(string) (*model.User, error)
+	emailExistsFn        func(string) (bool, error)
+	teleponExistsFn      func(string) (bool, error)
+	createFn             func(*model.User) error
+	getAllCustomersFn     func() ([]model.AdminCustomerResponse, error)
+	findCustomerByIDFn   func(string) (*model.AdminCustomerResponse, error)
+	createWalkInFn       func(*model.User) error
+	updateCustomerFn     func(string, string, string) error
+	deleteCustomerFn     func(string) error
+	hasActiveWOFn        func(string) (bool, error)
 }
 
 func (m *mockUserRepo) FindByEmail(email string) (*model.User, error) {
@@ -34,6 +40,42 @@ func (m *mockUserRepo) Create(user *model.User) error {
 		return m.createFn(user)
 	}
 	return nil
+}
+func (m *mockUserRepo) GetAllCustomers() ([]model.AdminCustomerResponse, error) {
+	if m.getAllCustomersFn != nil {
+		return m.getAllCustomersFn()
+	}
+	return []model.AdminCustomerResponse{}, nil
+}
+func (m *mockUserRepo) FindCustomerByID(userID string) (*model.AdminCustomerResponse, error) {
+	if m.findCustomerByIDFn != nil {
+		return m.findCustomerByIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) CreateWalkIn(user *model.User) error {
+	if m.createWalkInFn != nil {
+		return m.createWalkInFn(user)
+	}
+	return nil
+}
+func (m *mockUserRepo) UpdateCustomer(userID, nama, telepon string) error {
+	if m.updateCustomerFn != nil {
+		return m.updateCustomerFn(userID, nama, telepon)
+	}
+	return nil
+}
+func (m *mockUserRepo) DeleteCustomer(userID string) error {
+	if m.deleteCustomerFn != nil {
+		return m.deleteCustomerFn(userID)
+	}
+	return nil
+}
+func (m *mockUserRepo) HasActiveWO(userID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(userID)
+	}
+	return false, nil
 }
 
 // ── mockKendaraanRepo ────────────────────────────────────────────────────────
