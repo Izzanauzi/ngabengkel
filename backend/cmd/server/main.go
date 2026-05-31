@@ -28,6 +28,7 @@ func main() {
 	workOrderRepo := &repository.WorkOrderRepository{DB: db}
 	mekanikRepo := &repository.MekanikRepository{DB: db}
 	inventoryRepo := &repository.InventoryRepository{DB: db}
+	transactionRepo := &repository.TransactionRepository{DB: db}
 
 	// 4. Inisialisasi service
 	authService := &service.AuthService{UserRepo: userRepo}
@@ -40,6 +41,11 @@ func main() {
 	mekanikService := &service.MekanikService{MekanikRepo: mekanikRepo}
 	inventoryService := &service.InventoryService{InventoryRepo: inventoryRepo}
 	slotService := &service.SlotService{SlotRepo: slotRepo, WorkOrderRepo: workOrderRepo}
+	paymentService := &service.PaymentService{
+		TransactionRepo: transactionRepo,
+		WorkOrderRepo:   workOrderRepo,
+		InventoryRepo:   inventoryRepo,
+	}
 	adminWOService := &service.AdminWorkOrderService{
 		WorkOrderRepo: workOrderRepo,
 		BookingRepo:   bookingRepo,
@@ -56,6 +62,7 @@ func main() {
 	inventoryHandler := &handler.InventoryHandler{InventoryService: inventoryService}
 	adminWOHandler := &handler.AdminWorkOrderHandler{AdminWOService: adminWOService}
 	slotHandler := &handler.SlotHandler{SlotService: slotService}
+	paymentHandler := &handler.PaymentHandler{PaymentService: paymentService}
 
 	// Booking routes
 
@@ -118,6 +125,11 @@ func main() {
 	mux.HandleFunc("PUT /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Update)))
 	mux.HandleFunc("DELETE /api/v1/admin/inventory/{id}", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.Delete)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/items", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.AddToWO)))
+
+	// Admin Payment & Report routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/work-orders/{id}/invoice", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetInvoice)))
+	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/payment", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.ConfirmPayment)))
+	mux.HandleFunc("GET /api/v1/admin/reports/transactions", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetReport)))
 
 	// Admin Slot & Queue routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/slots", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.GetAll)))
