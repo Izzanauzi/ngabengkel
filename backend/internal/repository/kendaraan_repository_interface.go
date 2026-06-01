@@ -3,6 +3,7 @@ package repository
 import "github.com/ngabengkel/backend/internal/model"
 
 type KendaraanRepositoryInterface interface {
+	GetAll() ([]model.Kendaraan, error)
 	GetByUserID(userID string) ([]model.Kendaraan, error)
 	FindByID(kendaraanID string) (*model.Kendaraan, error)
 	Create(k *model.Kendaraan) error

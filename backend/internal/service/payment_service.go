@@ -85,6 +85,11 @@ func (s *PaymentService) ConfirmPayment(woID string, req model.PaymentRequest) (
 	return t, nil
 }
 
+// GetCustomerHistory — histori servis lunas untuk customer tertentu (admin view)
+func (s *PaymentService) GetCustomerHistory(userID string) ([]model.WorkOrder, error) {
+	return s.WorkOrderRepo.GetHistoriByCustomerID(userID)
+}
+
 // GetReport — rekap transaksi dalam periode
 func (s *PaymentService) GetReport(from, to string) (*model.TransactionReport, error) {
 	if from == "" || to == "" {

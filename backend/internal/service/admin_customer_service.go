@@ -79,6 +79,67 @@ func (s *AdminCustomerService) CreateWalkIn(req model.AdminCreateCustomerRequest
 	return user, nil
 }
 
+// GetAllKendaraan — ambil semua kendaraan (admin view, dengan info pemilik)
+func (s *AdminCustomerService) GetAllKendaraan() ([]model.Kendaraan, error) {
+	return s.KendaraanRepo.GetAll()
+}
+
+// AddKendaraanForCustomer — tambah kendaraan untuk customer (atau walk-in jika userID kosong)
+func (s *AdminCustomerService) AddKendaraanForCustomer(userID string, req model.KendaraanRequest) (*model.Kendaraan, error) {
+	req.Merek = strings.TrimSpace(req.Merek)
+	req.Model = strings.TrimSpace(req.Model)
+	req.NomorPolisi = strings.TrimSpace(req.NomorPolisi)
+
+	if req.Merek == "" {
+		return nil, errors.New("merek wajib diisi")
+	}
+	if req.Model == "" {
+		return nil, errors.New("model wajib diisi")
+	}
+	if req.Tahun == 0 {
+		return nil, errors.New("tahun wajib diisi")
+	}
+	if req.NomorPolisi == "" {
+		return nil, errors.New("nomor polisi wajib diisi")
+	}
+
+	polisiExists, err := s.KendaraanRepo.NomorPolisiExists(req.NomorPolisi)
+	if err != nil {
+		return nil, err
+	}
+	if polisiExists {
+		return nil, errors.New("nomor polisi sudah terdaftar")
+	}
+
+	if req.NomorRangka != nil && *req.NomorRangka != "" {
+		rangkaExists, err := s.KendaraanRepo.NomorRangkaExists(*req.NomorRangka)
+		if err != nil {
+			return nil, err
+		}
+		if rangkaExists {
+			return nil, errors.New("nomor rangka sudah terdaftar")
+		}
+	}
+
+	k := &model.Kendaraan{
+		KendaraanID: uuid.New().String(),
+		Merek:       req.Merek,
+		Model:       req.Model,
+		Tahun:       req.Tahun,
+		NomorPolisi: req.NomorPolisi,
+		Warna:       req.Warna,
+		NomorRangka: req.NomorRangka,
+	}
+	if userID != "" {
+		k.UserID = &userID
+	}
+
+	if err := s.KendaraanRepo.Create(k); err != nil {
+		return nil, err
+	}
+	return k, nil
+}
+
 // Update — update nama dan telepon customer
 func (s *AdminCustomerService) Update(userID, nama, telepon string) error {
 	nama = strings.TrimSpace(nama)
