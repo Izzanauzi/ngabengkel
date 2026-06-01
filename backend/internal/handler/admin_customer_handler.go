@@ -74,6 +74,34 @@ func (h *AdminCustomerHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Data customer berhasil diperbarui"})
 }
 
+// GET /api/v1/admin/kendaraan
+func (h *AdminCustomerHandler) GetAllKendaraan(w http.ResponseWriter, r *http.Request) {
+	kendaraan, err := h.AdminCustomerService.GetAllKendaraan()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Gagal mengambil data kendaraan")
+		return
+	}
+	writeJSON(w, http.StatusOK, kendaraan)
+}
+
+// POST /api/v1/admin/customers/{id}/kendaraan
+func (h *AdminCustomerHandler) AddKendaraan(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+
+	var req model.KendaraanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Format request tidak valid")
+		return
+	}
+
+	k, err := h.AdminCustomerService.AddKendaraanForCustomer(userID, req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, k)
+}
+
 // DELETE /api/v1/admin/customers/{id}
 func (h *AdminCustomerHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")

@@ -57,6 +57,17 @@ func (h *PaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, t)
 }
 
+// GET /api/v1/admin/reports/customers/{id}/history
+func (h *PaymentHandler) GetCustomerHistory(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	history, err := h.PaymentService.GetCustomerHistory(userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Gagal mengambil histori servis customer")
+		return
+	}
+	writeJSON(w, http.StatusOK, history)
+}
+
 // GET /api/v1/admin/reports/transactions?from=&to=
 func (h *PaymentHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	from := r.URL.Query().Get("from")

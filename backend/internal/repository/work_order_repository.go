@@ -89,6 +89,11 @@ func (r *WorkOrderRepository) GetHistoriByUserID(userID string) ([]model.WorkOrd
 	return result, nil
 }
 
+// GetHistoriByCustomerID — histori WO lunas untuk customer tertentu (admin view)
+func (r *WorkOrderRepository) GetHistoriByCustomerID(userID string) ([]model.WorkOrder, error) {
+	return r.GetHistoriByUserID(userID)
+}
+
 // FindByID — detail WO + kendaraan, tanpa progress
 func (r *WorkOrderRepository) FindByID(woID string) (*model.WorkOrderDetail, error) {
 	query := `

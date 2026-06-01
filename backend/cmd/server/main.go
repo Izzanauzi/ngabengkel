@@ -137,11 +137,16 @@ func main() {
 	mux.HandleFunc("GET /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.GetByID)))
 	mux.HandleFunc("PUT /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.Update)))
 	mux.HandleFunc("DELETE /api/v1/admin/customers/{id}", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.Delete)))
+	mux.HandleFunc("POST /api/v1/admin/customers/{id}/kendaraan", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.AddKendaraan)))
+
+	// Admin Kendaraan routes — butuh token + role admin
+	mux.HandleFunc("GET /api/v1/admin/kendaraan", middleware.RequireAuth(middleware.RequireRole("admin", adminCustomerHandler.GetAllKendaraan)))
 
 	// Admin Payment & Report routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/work-orders/{id}/invoice", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetInvoice)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/payment", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.ConfirmPayment)))
 	mux.HandleFunc("GET /api/v1/admin/reports/transactions", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetReport)))
+	mux.HandleFunc("GET /api/v1/admin/reports/customers/{id}/history", middleware.RequireAuth(middleware.RequireRole("admin", paymentHandler.GetCustomerHistory)))
 
 	// Admin Slot & Queue routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/slots", middleware.RequireAuth(middleware.RequireRole("admin", slotHandler.GetAll)))

@@ -81,6 +81,7 @@ func (m *mockUserRepo) HasActiveWO(userID string) (bool, error) {
 // ── mockKendaraanRepo ────────────────────────────────────────────────────────
 
 type mockKendaraanRepo struct {
+	getAllFn                    func() ([]model.Kendaraan, error)
 	getByUserIDFn              func(string) ([]model.Kendaraan, error)
 	findByIDFn                 func(string) (*model.Kendaraan, error)
 	createFn                   func(*model.Kendaraan) error
@@ -93,6 +94,12 @@ type mockKendaraanRepo struct {
 	nomorRangkaExistsExcludeFn func(string, string) (bool, error)
 }
 
+func (m *mockKendaraanRepo) GetAll() ([]model.Kendaraan, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.Kendaraan{}, nil
+}
 func (m *mockKendaraanRepo) GetByUserID(userID string) ([]model.Kendaraan, error) {
 	if m.getByUserIDFn != nil {
 		return m.getByUserIDFn(userID)
@@ -157,15 +164,16 @@ func (m *mockKendaraanRepo) NomorRangkaExistsExclude(nomorRangka, kendaraanID st
 // ── mockWorkOrderRepo ────────────────────────────────────────────────────────
 
 type mockWorkOrderRepo struct {
-	getActiveByUserIDFn  func(string) ([]model.WorkOrder, error)
-	getHistoriByUserIDFn func(string) ([]model.WorkOrder, error)
-	findByIDFn           func(string) (*model.WorkOrderDetail, error)
-	getProgressByWOIDFn  func(string) ([]model.Progress, error)
-	updateStatusFn       func(string, string) error
-	getAllFn             func() ([]model.WorkOrder, error)
-	createFn            func(*model.WorkOrder) error
-	addProgressFn       func(*model.Progress) error
-	generateNomorWOFn   func() (string, error)
+	getActiveByUserIDFn       func(string) ([]model.WorkOrder, error)
+	getHistoriByUserIDFn      func(string) ([]model.WorkOrder, error)
+	getHistoriByCustomerIDFn  func(string) ([]model.WorkOrder, error)
+	findByIDFn                func(string) (*model.WorkOrderDetail, error)
+	getProgressByWOIDFn       func(string) ([]model.Progress, error)
+	updateStatusFn            func(string, string) error
+	getAllFn                  func() ([]model.WorkOrder, error)
+	createFn                 func(*model.WorkOrder) error
+	addProgressFn            func(*model.Progress) error
+	generateNomorWOFn        func() (string, error)
 }
 
 func (m *mockWorkOrderRepo) GetActiveByUserID(userID string) ([]model.WorkOrder, error) {
@@ -179,6 +187,12 @@ func (m *mockWorkOrderRepo) GetHistoriByUserID(userID string) ([]model.WorkOrder
 		return m.getHistoriByUserIDFn(userID)
 	}
 	return nil, nil
+}
+func (m *mockWorkOrderRepo) GetHistoriByCustomerID(userID string) ([]model.WorkOrder, error) {
+	if m.getHistoriByCustomerIDFn != nil {
+		return m.getHistoriByCustomerIDFn(userID)
+	}
+	return []model.WorkOrder{}, nil
 }
 func (m *mockWorkOrderRepo) FindByID(woID string) (*model.WorkOrderDetail, error) {
 	if m.findByIDFn != nil {

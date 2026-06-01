@@ -11,6 +11,39 @@ type KendaraanRepository struct {
 	DB *sql.DB
 }
 
+// GetAll — semua kendaraan (admin), JOIN users untuk info pemilik
+func (r *KendaraanRepository) GetAll() ([]model.Kendaraan, error) {
+	query := `
+		SELECT k.kendaraan_id, k.user_id, k.merek, k.model, k.tahun,
+		       k.nomor_polisi, k.warna, k.nomor_rangka, k.created_at,
+		       u.nama AS nama_pemilik
+		FROM ngabengkel.kendaraan k
+		LEFT JOIN ngabengkel.users u ON u.user_id = k.user_id
+		ORDER BY k.created_at ASC
+	`
+
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	kendaraan := []model.Kendaraan{}
+	for rows.Next() {
+		var k model.Kendaraan
+		err := rows.Scan(
+			&k.KendaraanID, &k.UserID, &k.Merek, &k.Model,
+			&k.Tahun, &k.NomorPolisi, &k.Warna, &k.NomorRangka,
+			&k.CreatedAt, &k.NamaPemilik,
+		)
+		if err != nil {
+			return nil, err
+		}
+		kendaraan = append(kendaraan, k)
+	}
+	return kendaraan, nil
+}
+
 // GetByUserID — ambil semua kendaraan milik user
 func (r *KendaraanRepository) GetByUserID(userID string) ([]model.Kendaraan, error) {
 	query := `
