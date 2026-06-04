@@ -15,10 +15,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BookingCard from "../../../src/components/booking/bookingCard";
-import { useGetAllBookingsAdmin,
-    useAcceptBookingMutation,
-    useRejectBookingMutation, } from "../../../src/hooks/booking.hooks";
-import { BookingStatus, Booking } from "../../../src/@types/booking.types";
+import {
+  useGetPendingBookings,
+  useAcceptBookingMutation,
+  useRejectBookingMutation,
+} from "../../../src/hooks/booking.hooks";
+import type { Booking } from "../../../src/@types/booking.types";
 
 // ============================================================
 // TAB CONFIG
@@ -44,7 +46,12 @@ interface RejectModalProps {
   isLoading: boolean;
 }
 
-function RejectModal({ visible, onClose, onSubmit, isLoading }: RejectModalProps) {
+function RejectModal({
+  visible,
+  onClose,
+  onSubmit,
+  isLoading,
+}: RejectModalProps) {
   const [alasan, setAlasan] = useState("");
 
   const handleSubmit = () => {
@@ -62,7 +69,12 @@ function RejectModal({ visible, onClose, onSubmit, isLoading }: RejectModalProps
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalOverlay}
@@ -70,7 +82,10 @@ function RejectModal({ visible, onClose, onSubmit, isLoading }: RejectModalProps
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Tolak Booking</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={handleClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Ionicons name="close" size={22} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -117,7 +132,7 @@ export default function AdminBookingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("semua");
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
 
-  const { bookings, isLoading, refetch } = useGetAllBookingsAdmin();
+  const { bookings, isLoading, refetch } = useGetPendingBookings();
   const [refreshing, setRefreshing] = useState(false);
 
   const { acceptMutation } = useAcceptBookingMutation({
@@ -134,7 +149,9 @@ export default function AdminBookingPage() {
   // Hitung badge tiap tab
   const counts = useMemo(() => {
     const semua = bookings.length;
-    const menunggu = bookings.filter((b) => b.status === "menunggu_konfirmasi").length;
+    const menunggu = bookings.filter(
+      (b) => b.status === "menunggu_konfirmasi"
+    ).length;
     const disetujui = bookings.filter((b) => b.status === "disetujui").length;
     const ditolak = bookings.filter((b) => b.status === "ditolak").length;
     return { semua, menunggu_konfirmasi: menunggu, disetujui, ditolak };
@@ -166,7 +183,10 @@ export default function AdminBookingPage() {
   const handleRejectSubmit = useCallback(
     (alasan: string) => {
       if (!rejectTarget) return;
-      rejectMutation.mutate({ bookingId: rejectTarget, payload: { alasan_tolak: alasan } });
+      rejectMutation.mutate({
+        bookingId: rejectTarget,
+        payload: { alasan_tolak: alasan },
+      });
     },
     [rejectTarget, rejectMutation]
   );
@@ -183,7 +203,12 @@ export default function AdminBookingPage() {
         isRejecting={rejectMutation.isPending}
       />
     ),
-    [handleAccept, handleRejectOpen, acceptMutation.isPending, rejectMutation.isPending]
+    [
+      handleAccept,
+      handleRejectOpen,
+      acceptMutation.isPending,
+      rejectMutation.isPending,
+    ]
   );
 
   const renderEmpty = () => {
@@ -201,8 +226,16 @@ export default function AdminBookingPage() {
       {/* ── Summary cards ──────────────────────────── */}
       <View style={styles.summaryRow}>
         <SummaryCard label="Total" value={counts.semua} color="#3B82F6" />
-        <SummaryCard label="Menunggu" value={counts.menunggu_konfirmasi} color="#D97706" />
-        <SummaryCard label="Disetujui" value={counts.disetujui} color="#059669" />
+        <SummaryCard
+          label="Menunggu"
+          value={counts.menunggu_konfirmasi}
+          color="#D97706"
+        />
+        <SummaryCard
+          label="Disetujui"
+          value={counts.disetujui}
+          color="#059669"
+        />
         <SummaryCard label="Ditolak" value={counts.ditolak} color="#DC2626" />
       </View>
 
@@ -251,7 +284,11 @@ export default function AdminBookingPage() {
 
       {/* ── List ───────────────────────────────────── */}
       {isLoading ? (
-        <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 48 }} />
+        <ActivityIndicator
+          size="large"
+          color="#3B82F6"
+          style={{ marginTop: 48 }}
+        />
       ) : (
         <FlatList
           data={filteredBookings}

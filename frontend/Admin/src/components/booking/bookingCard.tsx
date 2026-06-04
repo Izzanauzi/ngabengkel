@@ -86,39 +86,13 @@ export default function BookingCard({
   const isPending = booking.status === "menunggu_konfirmasi";
 
   const handleAccept = () => {
-    Alert.alert(
-      "Setujui Booking",
-      `Setujui booking #${booking.booking_id.slice(0, 8).toUpperCase()}?`,
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Setujui",
-          onPress: () => onAccept?.(booking.booking_id),
-        },
-      ]
-    );
+    onAccept?.(booking.booking_id);
   };
 
   const handleReject = () => {
-    Alert.prompt(
-      "Tolak Booking",
-      "Masukkan alasan penolakan:",
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Tolak",
-          style: "destructive",
-          onPress: (alasan) => {
-            if (!alasan?.trim()) {
-              Alert.alert("Error", "Alasan penolakan wajib diisi");
-              return;
-            }
-            onReject?.(booking.booking_id);
-          },
-        },
-      ],
-      "plain-text"
-    );
+    // Alert.prompt hanya tersedia di iOS native — tidak support web/Android
+    // Input alasan ditangani oleh RejectModal di parent (index.tsx)
+    onReject?.(booking.booking_id);
   };
 
   return (

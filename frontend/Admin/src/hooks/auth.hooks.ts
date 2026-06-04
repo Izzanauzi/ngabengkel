@@ -4,47 +4,11 @@ import { useAuth } from "../contexts/auth.context";
 import { baseFetch } from "../utils/baseFetch";
 import { AuthResponse, ApiError } from "../@types/auth.types";
 
-interface RegisterPayload {
-  nama: string;
-  email: string;
-  telepon: string;
-  password: string;
-}
-
 interface LoginPayload {
   email: string;
   password: string;
 }
 
-// Register
-interface UseRegisterMutationProps {
-  onGlobalError: (message: string) => void;
-}
-
-export function useRegisterMutation({ onGlobalError }: UseRegisterMutationProps) {
-  const registerMutation = useMutation({
-    mutationFn: (payload: RegisterPayload) =>
-      baseFetch<AuthResponse>({
-        url: "/auth/register",
-        method: "POST",
-        payload,
-        options: { showError: false },
-      }),
-
-    onSuccess: () => {
-      router.replace("/(auth)/login");
-    },
-
-    onError: (error: any) => {
-      const apiError: ApiError | undefined = error?.response?.data;
-      onGlobalError(apiError?.message ?? "Terjadi kesalahan. Silahkan coba lagi.");
-    },
-  });
-
-  return { registerMutation };
-}
-
-// Login
 interface UseLoginMutationProps {
   onError: (message: string) => void;
 }
@@ -58,12 +22,8 @@ export function useLoginMutation({ onError }: UseLoginMutationProps) {
         url: "/auth/login",
         method: "POST",
         payload,
-        options: {
-          showError: false,
-          headers: {
-            "X-App": "customer", 
-          },
-        },
+        headers: { "X-App": "admin" }, // ← level atas, bukan di dalam options
+        options: { showError: false },
       }),
 
     onSuccess: async (data) => {
@@ -76,7 +36,7 @@ export function useLoginMutation({ onError }: UseLoginMutationProps) {
       const apiError: ApiError | undefined = error?.response?.data;
 
       if (error?.response?.status === 403) {
-        onError("Akses ditolak. Gunakan aplikasi admin untuk login sebagai admin.");
+        onError("Akses ditolak. Gunakan aplikasi customer untuk login sebagai customer.");
       } else if (error?.response?.status === 401) {
         onError(apiError?.message ?? "Email atau password salah.");
       } else {

@@ -1,17 +1,16 @@
-import { Text } from 'react-native'
-import { Tabs } from 'expo-router'
-
+import { Text } from "react-native";
+import { Tabs } from "expo-router";
 
 export default function BerandaLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#3B7BF6',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: "#3B7BF6",
+        tabBarInactiveTintColor: "#999",
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: "#fff",
           borderTopWidth: 1,
-          borderTopColor: '#eee',
+          borderTopColor: "#eee",
           height: 60,
           paddingBottom: 8,
         },
@@ -21,25 +20,38 @@ export default function BerandaLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Beranda',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
+          title: "Beranda",
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🏠</Text>,
         }}
       />
       <Tabs.Screen
-        name="booking/index"
+        name="booking"
         options={{
-          title: 'Booking',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
+          title: "Booking",
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🔧</Text>,
         }}
       />
       <Tabs.Screen
-        name="services/index"
+        name="history"
         options={{
-          title: 'Services',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}></Text>,
+          title: "History",
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🕐</Text>,
         }}
       />
-
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>👤</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="Servicess"
+        options={{
+          title: "Services",
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text>,
+        }}
+      />
     </Tabs>
-  )
+  );
 }
