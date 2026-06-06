@@ -8,8 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 interface AddMekanikModalProps {
   visible: boolean;
   onClose: () => void;
-  isEdit?: boolean;     // Menandakan apakah modal sedang dalam mode edit
-  mekanikData?: any;    // Data mekanik yang akan diedit (jika ada)
+  isEdit?: boolean;
+  mekanikData?: any;
+  onSave?: (data: { nama: string; telepon: string; keahlian: string; status: string }) => void;
+  isLoading?: boolean;
 }
 
 const specialties = [
@@ -21,11 +23,11 @@ const specialties = [
   'Umum / Servis Ringan'
 ];
 
-const AddMekanikModal: React.FC<AddMekanikModalProps> = ({ visible, onClose, isEdit = false, mekanikData = null }) => {
+const AddMekanikModal: React.FC<AddMekanikModalProps> = ({ visible, onClose, isEdit = false, mekanikData = null, onSave, isLoading }) => {
   const [nama, setNama] = useState('');
   const [telepon, setTelepon] = useState('');
   const [spesialisasi, setSpesialisasi] = useState('');
-  const [status, setStatus] = useState('Tersedia');
+  const [status, setStatus] = useState('tersedia');
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   // Mengisi form dengan data yang sudah ada jika dalam mode edit
@@ -34,18 +36,18 @@ const AddMekanikModal: React.FC<AddMekanikModalProps> = ({ visible, onClose, isE
       setNama(mekanikData.name || '');
       setTelepon(mekanikData.phone || '');
       setSpesialisasi(mekanikData.spec || '');
-      setStatus(mekanikData.status || 'Tersedia');
+      setStatus(mekanikData.status || 'tersedia');
     } else if (visible && !isEdit) {
-      // Mengosongkan form jika dalam mode tambah baru
       setNama('');
       setTelepon('');
       setSpesialisasi('');
-      setStatus('Tersedia');
+      setStatus('tersedia');
     }
   }, [visible, isEdit, mekanikData]);
 
   const handleSave = () => {
-    // Logika untuk menyimpan/memperbarui data bisa ditambahkan di sini
+    if (!nama.trim() || !telepon.trim() || !spesialisasi) return;
+    onSave?.({ nama: nama.trim(), telepon: telepon.trim(), keahlian: spesialisasi, status });
     onClose();
   };
 
@@ -143,20 +145,20 @@ const AddMekanikModal: React.FC<AddMekanikModalProps> = ({ visible, onClose, isE
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Status Ketersediaan</Text>
               <View style={styles.statusRow}>
-                <TouchableOpacity 
-                  style={[styles.statusBtn, status === 'Tersedia' && styles.statusBtnActiveTersedia]}
-                  onPress={() => setStatus('Tersedia')}
+                <TouchableOpacity
+                  style={[styles.statusBtn, status === 'tersedia' && styles.statusBtnActiveTersedia]}
+                  onPress={() => setStatus('tersedia')}
                 >
-                  <Ionicons name="checkmark-circle-outline" size={20} color={status === 'Tersedia' ? "#fff" : "#999"} />
-                  <Text style={[styles.statusBtnText, status === 'Tersedia' && styles.statusBtnTextActive]}>Tersedia</Text>
+                  <Ionicons name="checkmark-circle-outline" size={20} color={status === 'tersedia' ? "#fff" : "#999"} />
+                  <Text style={[styles.statusBtnText, status === 'tersedia' && styles.statusBtnTextActive]}>Tersedia</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.statusBtn, status === 'Tidak Tersedia' && styles.statusBtnActiveTidakTersedia]}
-                  onPress={() => setStatus('Tidak Tersedia')}
+                <TouchableOpacity
+                  style={[styles.statusBtn, status === 'sibuk' && styles.statusBtnActiveTidakTersedia]}
+                  onPress={() => setStatus('sibuk')}
                 >
-                  <Ionicons name="close-circle-outline" size={20} color={status === 'Tidak Tersedia' ? "#555" : "#999"} />
-                  <Text style={[styles.statusBtnText, status === 'Tidak Tersedia' && styles.statusBtnTextActiveDark]}>Tidak Tersedia</Text>
+                  <Ionicons name="close-circle-outline" size={20} color={status === 'sibuk' ? "#555" : "#999"} />
+                  <Text style={[styles.statusBtnText, status === 'sibuk' && styles.statusBtnTextActiveDark]}>Tidak Tersedia</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -168,8 +170,8 @@ const AddMekanikModal: React.FC<AddMekanikModalProps> = ({ visible, onClose, isE
             <TouchableOpacity style={styles.btnBatal} onPress={onClose}>
               <Text style={styles.btnBatalText}>Batal</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSimpan} onPress={handleSave}>
-              <Text style={styles.btnSimpanText}>Simpan</Text>
+            <TouchableOpacity style={styles.btnSimpan} onPress={handleSave} disabled={isLoading}>
+              <Text style={styles.btnSimpanText}>{isLoading ? 'Menyimpan...' : 'Simpan'}</Text>
             </TouchableOpacity>
           </View>
         </View>

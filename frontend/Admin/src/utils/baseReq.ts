@@ -11,6 +11,7 @@ export const axiosBaseConfig: AxiosRequestConfig = {
     // "X-Client-Type": "mobile",
     "Accept": "application/json",
     "Content-Type": "application/json",
+    "X-App": "admin",
   },
   timeout: 30000,
 };
@@ -38,6 +39,7 @@ request.interceptors.response.use(
         if (!error.config?.url?.includes('/auth/')) {
           await AsyncStorage.removeItem("access_token");
           await AsyncStorage.removeItem("refresh_token");
+          router.replace("/(auth)/login");
         }
       }
       return Promise.reject(error);

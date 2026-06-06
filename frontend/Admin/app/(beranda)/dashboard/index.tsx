@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -201,10 +200,7 @@ export default function DashboardScreen() {
     setAssigningId(wo_id);
     const ok = await assignSlot(wo_id, slot_id);
     setAssigningId(null);
-    if (ok) {
-      Alert.alert('Berhasil', 'WO berhasil di-assign ke slot.');
-      refetch();
-    }
+    if (ok) refetch();
   };
 
   // ── Loading ──

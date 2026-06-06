@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -368,6 +367,7 @@ export default function InventoriScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<InventoryItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ visible: boolean; item: InventoryItem | null }>({ visible: false, item: null });
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
@@ -415,21 +415,14 @@ export default function InventoriScreen() {
   };
 
   const handleDelete = (item: InventoryItem) => {
-    Alert.alert(
-      'Hapus Item',
-      `Yakin ingin menghapus "${item.nama}"?`,
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: async () => {
-            const ok = await deleteItem(item.inventory_id);
-            if (ok) refetch();
-          },
-        },
-      ]
-    );
+    setDeleteConfirm({ visible: true, item });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.item) return;
+    const ok = await deleteItem(deleteConfirm.item.inventory_id);
+    setDeleteConfirm({ visible: false, item: null });
+    if (ok) refetch();
   };
 
   const handleSubmit = async (data: InventoryRequest) => {
@@ -553,6 +546,34 @@ export default function InventoriScreen() {
         editItem={editTarget}
         loading={addLoading || updateLoading}
       />
+
+      {/* Delete Confirm Modal */}
+      <Modal visible={deleteConfirm.visible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', marginBottom: 8, color: '#111827' }}>
+              Hapus Item
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+              Yakin ingin menghapus "{deleteConfirm.item?.nama}"?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
+                onPress={() => setDeleteConfirm({ visible: false, item: null })}
+              >
+                <Text style={{ color: '#6B7280', fontWeight: '600' }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#DC2626', alignItems: 'center' }}
+                onPress={handleDeleteConfirm}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Hapus</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

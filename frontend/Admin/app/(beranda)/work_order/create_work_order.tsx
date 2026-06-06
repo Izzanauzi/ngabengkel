@@ -11,8 +11,8 @@ import {
   Modal,
   FlatList,
 } from "react-native";
-import { router } from "expo-router";
-import { useState, useMemo } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
   useCreateWorkOrderMutation,
@@ -356,6 +356,18 @@ interface FormErrors {
 }
 
 export default function CreateWorkOrderScreen() {
+  const {
+    booking_id,
+    user_id: prefilledUserId,
+    kendaraan_id: prefilledKendaraanId,
+    keluhan,
+  } = useLocalSearchParams<{
+    booking_id?: string;
+    user_id?: string;
+    kendaraan_id?: string;
+    keluhan?: string;
+  }>();
+
   // State selections
   const [selectedCustomer, setSelectedCustomer] =
     useState<CustomerOption | null>(null);
@@ -375,6 +387,28 @@ export default function CreateWorkOrderScreen() {
   const { customers, isLoading: loadingCustomers } = useGetAllCustomers();
   const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan();
   const { mekanikList, isLoading: loadingMekanik } = useGetAllMekanik();
+
+  // Pre-fill from booking params (run once when data is ready)
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    if (prefillDone.current) return;
+    if (!prefilledKendaraanId && !prefilledUserId) return;
+    if (loadingCustomers || loadingKendaraan) return;
+
+    if (prefilledUserId) {
+      const customer = customers.find((c) => c.user_id === prefilledUserId);
+      if (customer) setSelectedCustomer(customer);
+    }
+    if (prefilledKendaraanId) {
+      const kendaraan = kendaraanList.find(
+        (k) => k.kendaraan_id === prefilledKendaraanId
+      );
+      if (kendaraan) setSelectedKendaraan(kendaraan);
+    }
+    if (keluhan) setCatatanAwal(keluhan);
+
+    prefillDone.current = true;
+  }, [customers, kendaraanList, loadingCustomers, loadingKendaraan]);
 
   // Mapping ke DropdownItem
   const customerItems = useMemo<DropdownItem[]>(
@@ -431,15 +465,17 @@ export default function CreateWorkOrderScreen() {
     if (!validate()) return;
 
     const payload: CreateWorkOrderPayload = {
-      kendaraan_id: selectedKendaraan!.value,
+      kendaraan_id: selectedKendaraan!.kendaraan_id,
     };
 
-    if (selectedCustomer) payload.user_id = selectedCustomer.value;
-    if (selectedMekanik) payload.mekanik_id = selectedMekanik.value;
-    if (catatanAwal.trim()) payload.catatan_awal = catatanAwal.trim();
+    if (selectedCustomer) payload.user_id = selectedCustomer.user_id;
+    if (selectedMekanik) payload.mekanik_id = selectedMekanik.mekanik_id;
+    if (catatanAwal.trim()) payload.deskripsi_kerusakan = catatanAwal.trim();
     if (estimasiBiaya.trim())
       payload.estimasi_biaya = parseInt(estimasiBiaya, 10);
+    if (booking_id) payload.booking_id = booking_id;
 
+    console.log('[CreateWO] payload:', JSON.stringify(payload, null, 2));
     createWorkOrderMutation.mutate(payload);
   };
 
@@ -469,6 +505,16 @@ export default function CreateWorkOrderScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Booking badge */}
+          {booking_id && (
+            <View style={styles.bookingBadge}>
+              <Ionicons name="calendar-check-outline" size={14} color="#2563EB" />
+              <Text style={styles.bookingBadgeText}>
+                Dari Booking #{booking_id.replace(/-/g, '').slice(0, 6).toUpperCase()}
+              </Text>
+            </View>
+          )}
+
           {/* Error Banner */}
           {submitError && (
             <ErrorBanner
@@ -567,7 +613,7 @@ export default function CreateWorkOrderScreen() {
             />
 
             <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Catatan Awal</Text>
+              <Text style={styles.fieldLabel}>Deskripsi Kerusakan</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 value={catatanAwal}
@@ -654,6 +700,19 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
   scrollContent: { padding: 16 },
+  bookingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  bookingBadgeText: { fontSize: 13, fontWeight: "600", color: "#2563EB" },
   section: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,

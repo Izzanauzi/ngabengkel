@@ -14,18 +14,18 @@ export const useDashboard = () => {
       // Fetch paralel: slots+antrian, booking menunggu, WO aktif
       const [slotsRes, bookingRes, woRes] = await Promise.all([
         baseFetch<SlotResponse>({
-          url: '/slots',
+          url: '/admin/slots',
           method: 'GET',
           options: { showError: false },
         }),
         baseFetch<any[]>({
-          url: '/bookings',
+          url: '/admin/bookings',
           method: 'GET',
           params: { status: 'menunggu_konfirmasi' },
           options: { showError: false },
         }),
         baseFetch<any[]>({
-          url: '/work-orders',
+          url: '/admin/work-orders',
           method: 'GET',
           options: { showError: false },
         }),
@@ -77,9 +77,9 @@ export const useAssignSlot = () => {
     setLoading(true);
     try {
       await baseFetch({
-        url: '/slots/assign',
+        url: `/admin/slots/${slot_id}/assign`,
         method: 'POST',
-        payload: { wo_id, slot_id },
+        payload: { wo_id },
       });
       return true;
     } catch {
