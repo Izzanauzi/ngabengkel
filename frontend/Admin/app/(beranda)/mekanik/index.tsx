@@ -1,41 +1,52 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// PERBAIKAN: Import Header dihapus dari sini
-import { mechanics } from '../../../src/utils/dummydata'; 
+// Komponen Modular
 import AddMekanikModal from '../../../src/components/AddMekanikModal';
 import DeleteModal from '../../../src/components/DeleteModal';
 import MekanikCard from '../../../src/components/mekanik/MekanikCard';
 
+// Hook API & Types
+import { useGetAllMekanik, useDeleteMekanik } from '../../../src/hooks/mekanik.hooks';
+import { Mekanik } from '../../../src/@types/mekanik';
+
 export default function MekanikScreen() {
-  const [mechanicsList, setMechanicsList] = useState(mechanics);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // 1. Fetch Data dari API menggunakan React Query
+  const { data, isLoading, isError } = useGetAllMekanik();
+  const mechanicsList = data || []; // Pastikan berbentuk array meskipun kosong
+  
+  // 2. Setup Mutasi untuk Hapus
+  const deleteMutation = useDeleteMekanik();
+
   // States Modal
   const [isFormModalVisible, setFormModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedMekanik, setSelectedMekanik] = useState<any>(null);
+  const [selectedMekanik, setSelectedMekanik] = useState<Mekanik | null>(null);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const filteredMechanics = mechanicsList.filter(mekanik => 
-    mekanik.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mekanik.spec.toLowerCase().includes(searchQuery.toLowerCase())
+  // 3. Filter berdasarkan 'nama' atau 'keahlian' (sesuai struktur API)
+  const filteredMechanics = mechanicsList.filter((mekanik: Mekanik) => 
+    (mekanik.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (mekanik.keahlian || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddClick = () => { setIsEditMode(false); setSelectedMekanik(null); setFormModalVisible(true); };
-  const handleEditClick = (mekanik: any) => { setIsEditMode(true); setSelectedMekanik(mekanik); setFormModalVisible(true); };
-  const handleDeleteClick = (mekanik: any) => { setSelectedMekanik(mekanik); setDeleteModalVisible(true); };
+  const handleEditClick = (mekanik: Mekanik) => { setIsEditMode(true); setSelectedMekanik(mekanik); setFormModalVisible(true); };
+  const handleDeleteClick = (mekanik: Mekanik) => { setSelectedMekanik(mekanik); setDeleteModalVisible(true); };
 
+  // 4. Eksekusi Hapus ke Database
   const confirmDelete = () => {
-    if (selectedMekanik) { setMechanicsList(mechanicsList.filter(item => item.id !== selectedMekanik.id)); }
+    if (selectedMekanik) {
+      deleteMutation.mutate(selectedMekanik.mekanik_id);
+    }
     setDeleteModalVisible(false);
   };
 
   return (
     <View style={styles.container}>
-      
-      {/* PERBAIKAN: Komponen <Header /> dihapus dari sini */}
       
       {/* Top Stats */}
       <View style={styles.topStats}>
@@ -44,11 +55,13 @@ export default function MekanikScreen() {
           <Text style={styles.topStatLabel}>Total Mekanik</Text>
         </View>
         <View style={styles.topStatBox}>
-          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status === 'Tersedia').length}</Text>
+          {/* Hitung yang 'tersedia' sesuai enum API */}
+          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status === 'tersedia').length}</Text>
           <Text style={styles.topStatLabel}>Tersedia</Text>
         </View>
         <View style={styles.topStatBox}>
-          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status !== 'Tersedia').length}</Text>
+          {/* Hitung yang 'tidak_tersedia' sesuai enum API */}
+          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status === 'tidak_tersedia').length}</Text>
           <Text style={styles.topStatLabel}>Tidak Tersedia</Text>
         </View>
       </View>
@@ -65,12 +78,20 @@ export default function MekanikScreen() {
           </TouchableOpacity>
         </View>
 
-        <FlatList 
-          data={filteredMechanics} 
-          renderItem={({ item }) => <MekanikCard item={item} onEdit={handleEditClick} onDelete={handleDeleteClick} />} 
-          keyExtractor={item => item.id} 
-          showsVerticalScrollIndicator={false}
-        />
+        {/* 5. Tampilkan Loading, Error, atau List Data */}
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#1a73e8" style={{ marginTop: 50 }} />
+        ) : isError ? (
+          <Text style={{ textAlign: 'center', marginTop: 50, color: 'red' }}>Gagal memuat data mekanik.</Text>
+        ) : (
+          <FlatList 
+            data={filteredMechanics} 
+            renderItem={({ item }) => <MekanikCard item={item} onEdit={handleEditClick} onDelete={handleDeleteClick} />} 
+            keyExtractor={item => item.mekanik_id} 
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 30, color: '#999' }}>Tidak ada data mekanik</Text>}
+          />
+        )}
       </View>
 
       <TouchableOpacity style={styles.fab} onPress={handleAddClick}>
@@ -78,7 +99,7 @@ export default function MekanikScreen() {
       </TouchableOpacity>
 
       <AddMekanikModal visible={isFormModalVisible} onClose={() => setFormModalVisible(false)} isEdit={isEditMode} mekanikData={selectedMekanik} />
-      <DeleteModal visible={isDeleteModalVisible} onClose={() => setDeleteModalVisible(false)} onConfirm={confirmDelete} title="Hapus Mekanik?" itemName={selectedMekanik?.name} />
+      <DeleteModal visible={isDeleteModalVisible} onClose={() => setDeleteModalVisible(false)} onConfirm={confirmDelete} title="Hapus Mekanik?" itemName={selectedMekanik?.nama || ''} />
     </View>
   );
 }
@@ -89,7 +110,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     backgroundColor: '#1a73e8', 
     paddingBottom: 20, 
-    paddingTop: 15, // PERBAIKAN: Menambahkan padding top sebagai pengganti jarak Header
+    paddingTop: 15, 
     paddingHorizontal: 10 
   },
   topStatBox: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', borderRadius: 10, paddingVertical: 12, marginHorizontal: 5 },

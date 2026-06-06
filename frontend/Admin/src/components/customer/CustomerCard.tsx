@@ -1,27 +1,44 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Customer } from '../../@types/customer';
 
-export default function CustomerCard({ item, onView, onEdit, onDelete }: any) {
+interface CustomerCardProps {
+  item: Customer;
+  onView: (item: Customer) => void;
+  onEdit: (item: Customer) => void;
+  onDelete: (item: Customer) => void;
+}
+
+export default function CustomerCard({ item, onView, onEdit, onDelete }: CustomerCardProps) {
+  // Fungsi otomatis untuk membuat inisial nama (Misal: "Fadly Ahmad" -> "FA")
+  const getInitials = (name: string) => {
+    if (!name) return 'C';
+    const names = name.trim().split(' ');
+    if (names.length > 1) return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{item.initials}</Text>
+          <Text style={styles.avatarText}>{getInitials(item.nama)}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.name}>{item.nama}</Text>
           <View style={styles.row}>
             <Ionicons name="call-outline" size={14} color="#666" />
-            <Text style={styles.phone}>{item.phone}</Text>
+            <Text style={styles.phone}>{item.telepon}</Text>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="car-outline" size={16} color="#1a73e8" />
-              <Text style={styles.statTextBlue}>{item.vehicles} kendaraan</Text>
+              {/* Menggunakan fallback 0 jika data dari backend belum tersedia */}
+              <Text style={styles.statTextBlue}>{item.jumlah_kendaraan || 0} kendaraan</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statTextGrey}>{item.wo} WO selesai</Text>
+              <Text style={styles.statTextGrey}>{item.jumlah_wo || 0} WO selesai</Text>
             </View>
           </View>
         </View>
@@ -37,18 +54,16 @@ export default function CustomerCard({ item, onView, onEdit, onDelete }: any) {
           </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.vehicleTags}>
+      
+      {/* Bagian tag plat nomor disembunyikan sementara 
+          karena endpoint /customers dari backend belum menyertakan list plat nomor. */}
+      {/* <View style={styles.vehicleTags}>
         <View style={styles.tag}>
-          <Text style={styles.plateBadge}>{item.plate1}</Text>
-          <Text style={styles.carModel}>{item.car1}</Text>
+          <Text style={styles.plateBadge}>D 1234 ABC</Text>
+          <Text style={styles.carModel}>Contoh Kendaraan</Text>
         </View>
-        {item.plate2 && (
-          <View style={styles.tag}>
-            <Text style={styles.plateBadge}>{item.plate2}</Text>
-            <Text style={styles.carModel}>{item.car2}</Text>
-          </View>
-        )}
-      </View>
+      </View> 
+      */}
     </View>
   );
 }

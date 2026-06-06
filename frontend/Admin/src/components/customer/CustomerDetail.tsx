@@ -1,8 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Customer } from '../../@types/customer';
 
-export default function CustomerDetail({ customer, onBack }: any) {
+interface CustomerDetailProps {
+  customer: Customer;
+  onBack: () => void;
+}
+
+export default function CustomerDetail({ customer, onBack }: CustomerDetailProps) {
+  // Fungsi otomatis untuk membuat inisial nama (Misal: "Budi Santoso" -> "BS")
+  const getInitials = (name: string) => {
+    if (!name) return 'C';
+    const names = name.trim().split(' ');
+    if (names.length > 1) return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.detailHeaderArea}>
@@ -16,29 +30,32 @@ export default function CustomerDetail({ customer, onBack }: any) {
 
         <View style={styles.profileRow}>
           <View style={styles.detailAvatar}>
-            <Text style={styles.detailAvatarText}>{customer.initials}</Text>
+            <Text style={styles.detailAvatarText}>{getInitials(customer.nama)}</Text>
           </View>
           <View>
-            <Text style={styles.detailName}>{customer.name}</Text>
-            <Text style={styles.detailSubtitle}>Customer sejak Jan 2024</Text>
+            <Text style={styles.detailName}>{customer.nama}</Text>
+            {/* Backend belum punya tanggal bergabung, pakai statis dulu */}
+            <Text style={styles.detailSubtitle}>Customer Terdaftar</Text>
           </View>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgeRow}>
           <View style={styles.detailHeaderBadge}>
             <Ionicons name="car-outline" size={14} color="#fff" />
-            <Text style={styles.detailBadgeText}>{customer.vehicles} Kendaraan</Text>
+            <Text style={styles.detailBadgeText}>{customer.jumlah_kendaraan || 0} Kendaraan</Text>
           </View>
           <View style={styles.detailHeaderBadge}>
-            <Text style={styles.detailBadgeText}># {customer.wo} Riwayat WO</Text>
+            <Text style={styles.detailBadgeText}># {customer.jumlah_wo || 0} Riwayat WO</Text>
           </View>
           <View style={styles.detailHeaderBadge}>
-            <Text style={styles.detailBadgeText}>Rp 2110rb spent</Text>
+            {/* Total spent belum ada di API user, diset strip dulu */}
+            <Text style={styles.detailBadgeText}>Rp - spent</Text>
           </View>
         </ScrollView>
       </View>
 
       <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
+        
         {/* Card INFORMASI KONTAK */}
         <View style={styles.infoContactCard}>
           <Text style={styles.infoContactTitle}>INFORMASI KONTAK</Text>
@@ -47,40 +64,31 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <View style={styles.contactIconContainer}>
               <Ionicons name="call-outline" size={18} color="#1a73e8" />
             </View>
-            <Text style={styles.contactItemText}>{customer.phone}</Text>
+            <Text style={styles.contactItemText}>{customer.telepon}</Text>
           </View>
 
           <View style={styles.contactItemRow}>
             <View style={styles.contactIconContainer}>
               <Ionicons name="mail-outline" size={18} color="#1a73e8" />
             </View>
-            <Text style={styles.contactItemText}>{customer.name.toLowerCase().replace(' ', '.')}@email.com</Text>
-          </View>
-
-          <View style={styles.contactItemRow}>
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="location-outline" size={18} color="#1a73e8" />
-            </View>
-            <Text style={styles.contactItemText}>Jl. Merdeka No. 12, Bandung</Text>
+            {/* Menggunakan email asli dari API */}
+            <Text style={styles.contactItemText}>{customer.email || 'Email belum diatur'}</Text>
           </View>
 
           <View style={[styles.contactItemRow, { borderBottomWidth: 0 }]}>
             <View style={styles.contactIconContainer}>
-              <Ionicons name="calendar-outline" size={18} color="#1a73e8" />
+              <Ionicons name="location-outline" size={18} color="#1a73e8" />
             </View>
-            <Text style={styles.contactItemText}>Bergabung Jan 2024</Text>
+            <Text style={styles.contactItemText}>Alamat belum diatur</Text>
           </View>
         </View>
 
-        {/* Section KENDARAAN */}
+        {/* Section KENDARAAN (UI Dummy Sementara) */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleGroup}>
             <View style={styles.blueBarIndicator} />
-            <Text style={styles.sectionHeadingTitle}>Kendaraan</Text>
+            <Text style={styles.sectionHeadingTitle}>Kendaraan (Data Contoh)</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.blueActionLink}>+ Tambah</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.vehicleCardItem}>
@@ -89,39 +97,21 @@ export default function CustomerDetail({ customer, onBack }: any) {
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.vehicleNameRow}>
-              <Text style={styles.vehicleModelName}>{customer.car1}</Text>
-              <View style={styles.yearBadge}><Text style={styles.yearBadgeText}>2019</Text></View>
+              <Text style={styles.vehicleModelName}>Honda Vario 150</Text>
+              <View style={styles.yearBadge}><Text style={styles.yearBadgeText}>2021</Text></View>
             </View>
             <View style={styles.vehicleMetaRow}>
-              <Text style={styles.plateNumberBadge}>{customer.plate1}</Text>
-              <Text style={styles.colorText}>Putih</Text>
+              <Text style={styles.plateNumberBadge}>D 1234 ABC</Text>
+              <Text style={styles.colorText}>Hitam</Text>
             </View>
           </View>
         </View>
 
-        {customer.car2 && (
-          <View style={styles.vehicleCardItem}>
-            <View style={styles.vehicleIconBox}>
-              <Ionicons name="car-outline" size={24} color="#1a73e8" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.vehicleNameRow}>
-                <Text style={styles.vehicleModelName}>{customer.car2}</Text>
-                <View style={styles.yearBadge}><Text style={styles.yearBadgeText}>2021</Text></View>
-              </View>
-              <View style={styles.vehicleMetaRow}>
-                <Text style={styles.plateNumberBadge}>{customer.plate2}</Text>
-                <Text style={styles.colorText}>Merah</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Section HISTORI SERVIS */}
+        {/* Section HISTORI SERVIS (UI Dummy Sementara) */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleGroup}>
             <View style={styles.greenBarIndicator} />
-            <Text style={styles.sectionHeadingTitle}>Histori Servis</Text>
+            <Text style={styles.sectionHeadingTitle}>Histori Servis (Data Contoh)</Text>
           </View>
           <TouchableOpacity>
             <Text style={styles.blueActionLink}>Semua  <Ionicons name="chevron-forward" size={14} /></Text>
@@ -152,6 +142,7 @@ export default function CustomerDetail({ customer, onBack }: any) {
   );
 }
 
+// STYLES SAMA PERSIS SEPERTI SEBELUMNYA
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa' },
   detailHeaderArea: { backgroundColor: '#1a73e8', paddingTop: 20, paddingBottom: 25, paddingHorizontal: 20, position: 'relative', overflow: 'hidden' },

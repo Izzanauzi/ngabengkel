@@ -5,25 +5,75 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  Modal 
+  Modal,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// --- DATA DUMMY ---
-const dummySlots = [
-  { id: '1', name: 'Slot 1', status: 'Tersedia' },
-  { id: '2', name: 'Slot 2', status: 'Terisi' },
-  { id: '3', name: 'Slot 3', status: 'Terisi' },
-];
-
-const dummyQueue = [
-  { id: '1', wo: 'WO-2025-0045', vehicle: 'Yamaha NMAX 155', plate: 'D 9012 GHI', eta: '±30 mnt' },
-  { id: '2', wo: 'WO-2025-0046', vehicle: 'Honda PCX 160', plate: 'B 3456 JKL', eta: '±45 mnt' },
-];
+// Hooks API
+import { useGetAdminSlots, useUpdateSlotStatus, useAssignSlot } from '../../../src/hooks/slot.hooks';
+import { Slot } from '../../../src/@types/slot';
 
 export default function SlotScreen() {
+  // 1. Fetch Data API
+  const { data, isLoading, isError } = useGetAdminSlots();
+  const slotsList = data?.slots || [];
+  const queueList = data?.antrian || [];
+
+  // 2. Setup Mutasi
+  const updateStatusMutation = useUpdateSlotStatus();
+  const assignSlotMutation = useAssignSlot();
+
+  // State untuk Modal Update Status
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('Terisi');
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<'tersedia' | 'terisi' | 'tidak_tersedia'>('tersedia');
+
+  // Buka modal saat slot diklik
+  const handleSlotClick = (slot: Slot) => {
+    setSelectedSlot(slot);
+    setSelectedStatus(slot.status);
+    setModalVisible(true);
+  };
+
+  // Simpan perubahan status manual
+  const handleSaveStatus = () => {
+    if (selectedSlot) {
+      updateStatusMutation.mutate({
+        id: selectedSlot.slot_id,
+        // TS: selectedStatus can include 'terisi' but API types expect different union;
+        // cast to any to satisfy type checker without changing external types here.
+        data: { status: selectedStatus as any }
+      });
+    }
+    setModalVisible(false);
+  };
+
+  // Fungsi Assign otomatis ke slot yang kosong
+  const handleAssignClick = (woId: string) => {
+    // Cari slot pertama yang tersedia
+    const availableSlot = slotsList.find((s: Slot) => s.status === 'tersedia');
+    
+    if (!availableSlot) {
+      Alert.alert("Gagal", "Tidak ada slot yang tersedia saat ini.");
+      return;
+    }
+
+    Alert.alert(
+      "Assign Slot",
+      `Masukkan kendaraan ini ke ${availableSlot.nomor_slot}?`,
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Assign", 
+          onPress: () => {
+            assignSlotMutation.mutate({ wo_id: woId, slot_id: availableSlot.slot_id });
+          } 
+        }
+      ]
+    );
+  };
 
   // Komponen custom untuk Radio Button
   const RadioButton = ({ label, selected, onPress }: { label: string, selected: boolean, onPress: () => void }) => (
@@ -37,78 +87,86 @@ export default function SlotScreen() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Slot & Antrian</Text>
-      </View>
+      {/* HEADER MANUAL DIHAPUS */}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* SECTION: STATUS SLOT BENGKEL */}
-        <Text style={styles.sectionTitle}>STATUS SLOT BENGKEL</Text>
-        <View style={styles.slotRow}>
-          {dummySlots.map((slot) => {
-            const isTersedia = slot.status === 'Tersedia';
-            return (
-              <View 
-                key={slot.id} 
-                style={[
-                  styles.slotCard, 
-                  isTersedia ? styles.slotCardTersedia : styles.slotCardTerisi
-                ]}
-              >
-                <Text style={[styles.slotName, isTersedia ? styles.textTersedia : styles.textTerisi]}>
-                  {slot.name}
-                </Text>
-                <Text style={[styles.slotStatus, isTersedia ? styles.textTersedia : styles.textTerisi]}>
-                  {slot.status}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#1a73e8" style={{ marginTop: 50 }} />
+        ) : isError ? (
+          <Text style={{ textAlign: 'center', marginTop: 50, color: 'red' }}>Gagal memuat data slot.</Text>
+        ) : (
+          <>
+            {/* SECTION: STATUS SLOT BENGKEL */}
+            <Text style={styles.sectionTitle}>STATUS SLOT BENGKEL</Text>
+            <View style={styles.slotRow}>
+              {slotsList.map((slot: Slot) => {
+                const isTersedia = slot.status === 'tersedia';
+                // Teks status untuk UI agar huruf awalnya kapital
+                const statusLabel = slot.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-        {/* SECTION: ANTRIAN MASUK */}
-        <View style={styles.queueContainer}>
-          <Text style={styles.sectionTitle}>ANTRIAN MASUK (4 KENDARAAN)</Text>
-          
-          <View style={styles.queueCard}>
-            {dummyQueue.map((item, index) => (
-              <View key={item.id} style={[styles.queueItem, index !== dummyQueue.length - 1 && styles.queueItemBorder]}>
-                <View style={styles.queueInfo}>
-                  <Text style={styles.queueWo}>{item.wo}</Text>
-                  <Text style={styles.queueVehicle}>{item.vehicle}</Text>
-                  <Text style={styles.queueMeta}>{item.plate} · Estimasi: {item.eta}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.btnAssign} 
-                  onPress={() => setModalVisible(true)}
-                >
-                  <Text style={styles.btnAssignText}>Assign Slot</Text>
-                </TouchableOpacity>
+                return (
+                  <TouchableOpacity 
+                    key={slot.slot_id} 
+                    activeOpacity={0.7}
+                    onPress={() => handleSlotClick(slot)}
+                    style={[
+                      styles.slotCard, 
+                      isTersedia ? styles.slotCardTersedia : styles.slotCardTerisi
+                    ]}
+                  >
+                    <Text style={[styles.slotName, isTersedia ? styles.textTersedia : styles.textTerisi]}>
+                      {slot.nomor_slot}
+                    </Text>
+                    <Text style={[styles.slotStatus, isTersedia ? styles.textTersedia : styles.textTerisi]}>
+                      {statusLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* SECTION: ANTRIAN MASUK */}
+            <View style={styles.queueContainer}>
+              <Text style={styles.sectionTitle}>ANTRIAN MASUK ({queueList.length} KENDARAAN)</Text>
+              
+              <View style={styles.queueCard}>
+                {queueList.length === 0 ? (
+                  <Text style={{ padding: 20, textAlign: 'center', color: '#888' }}>Tidak ada antrian saat ini.</Text>
+                ) : (
+                  queueList.map((item: any, index: number) => (
+                    <View key={item.wo_id} style={[styles.queueItem, index !== queueList.length - 1 && styles.queueItemBorder]}>
+                      <View style={styles.queueInfo}>
+                        <Text style={styles.queueWo}>{item.nomor_wo}</Text>
+                        <Text style={styles.queueVehicle}>
+                          {item.kendaraan?.merek} {item.kendaraan?.model}
+                        </Text>
+                        <Text style={styles.queueMeta}>{item.kendaraan?.nomor_polisi} · Menunggu</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.btnAssign} 
+                        onPress={() => handleAssignClick(item.wo_id)}
+                      >
+                        <Text style={styles.btnAssignText}>Assign Slot</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
               </View>
-            ))}
-          </View>
-        </View>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* MODAL UPDATE STATUS SLOT */}
       <Modal transparent visible={isModalVisible} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Update Status Slot 2</Text>
-
-            <View style={styles.modalDataGroup}>
-              <Text style={styles.modalLabel}>Status Saat Ini</Text>
-              <Text style={styles.modalValue}>Terisi – Honda Vario · D 1234 ABC</Text>
-            </View>
+            <Text style={styles.modalTitle}>Update Status {selectedSlot?.nomor_slot}</Text>
 
             <View style={styles.modalDataGroup}>
               <Text style={styles.modalLabel}>WO Aktif</Text>
-              <Text style={styles.modalValue}>WO-2025-0042</Text>
+              <Text style={styles.modalValue}>{selectedSlot?.wo_id ? selectedSlot.wo_id : 'Kosong'}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -118,22 +176,22 @@ export default function SlotScreen() {
             <View style={styles.radioGroup}>
               <RadioButton 
                 label="Tersedia" 
-                selected={selectedStatus === 'Tersedia'} 
-                onPress={() => setSelectedStatus('Tersedia')} 
+                selected={selectedStatus === 'tersedia'} 
+                onPress={() => setSelectedStatus('tersedia')} 
               />
               <RadioButton 
                 label="Terisi" 
-                selected={selectedStatus === 'Terisi'} 
-                onPress={() => setSelectedStatus('Terisi')} 
+                selected={selectedStatus === 'terisi'} 
+                onPress={() => setSelectedStatus('terisi')} 
               />
               <RadioButton 
                 label="Tidak Tersedia" 
-                selected={selectedStatus === 'Tidak Tersedia'} 
-                onPress={() => setSelectedStatus('Tidak Tersedia')} 
+                selected={selectedStatus === 'tidak_tersedia'} 
+                onPress={() => setSelectedStatus('tidak_tersedia')} 
               />
             </View>
 
-            <TouchableOpacity style={styles.btnSimpanStatus} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity style={styles.btnSimpanStatus} onPress={handleSaveStatus}>
               <Text style={styles.btnSimpanStatusText}>Simpan Status</Text>
             </TouchableOpacity>
             
@@ -154,25 +212,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  headerContainer: {
-    backgroundColor: '#1a73e8',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 15,
-    paddingHorizontal: 15,
-  },
-  backButton: {
-    marginRight: 15,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   content: {
     flex: 1,
     padding: 20,
+    paddingTop: 15, // Pengganti jarak header
   },
   sectionTitle: {
     fontSize: 13,
