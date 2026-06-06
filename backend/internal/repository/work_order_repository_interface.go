@@ -9,6 +9,8 @@ type WorkOrderRepositoryInterface interface {
 	FindByID(woID string) (*model.WorkOrderDetail, error)
 	GetProgressByWOID(woID string) ([]model.Progress, error)
 	UpdateStatus(woID, status string) error
+	FinishWO(woID string, biayaJasa float64) error
+	UpdateBiaya(woID string, biayaJasa, estimasiBiaya float64) error
 	GetAll() ([]model.WorkOrder, error)
 	Create(wo *model.WorkOrder) error
 	AddProgress(p *model.Progress) error

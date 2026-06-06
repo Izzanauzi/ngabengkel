@@ -102,7 +102,7 @@ export default function DetailWO() {
     .find((p) => p.tipe === "suspend");
 
   const totalMaterial = (wo.items ?? []).reduce((sum, i) => sum + i.subtotal, 0);
-  const totalBiaya = wo.biaya_jasa + totalMaterial;
+  const totalBiaya = (wo.biaya_jasa ?? 0) + totalMaterial;
 
   const isActionLoading = approveActionMutation.isPending || rejectActionMutation.isPending;
 
@@ -226,7 +226,7 @@ export default function DetailWO() {
           <Text style={styles.cardTitle}>Rincian Biaya</Text>
           <View style={[styles.biayaRow, styles.biayaBorder]}>
             <Text style={styles.biayaItem}>Biaya Jasa</Text>
-            <Text style={styles.biayaHarga}>{formatRupiah(wo.biaya_jasa)}</Text>
+            <Text style={styles.biayaHarga}>{formatRupiah(wo.biaya_jasa ?? 0)}</Text>
           </View>
           {(wo.items ?? []).map((item, i) => (
             <View

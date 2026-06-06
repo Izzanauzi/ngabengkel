@@ -31,16 +31,19 @@ export default function MekanikScreen() {
   const [selectedMekanik, setSelectedMekanik] = useState<Mekanik | null>(null);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const { mekaniks, isLoading } = useGetAllMekanik();
   const { createMutation } = useCreateMekanikMutation({
-    successAction: () => { showSuccess("Mekanik berhasil ditambahkan"); setFormModalVisible(false); },
+    onSuccess: () => { showSuccess("Mekanik berhasil ditambahkan"); setFormModalVisible(false); },
+    onError: (msg) => showError(msg),
   });
   const { updateMutation } = useUpdateMekanikMutation({
-    successAction: () => { showSuccess("Mekanik berhasil diperbarui"); setFormModalVisible(false); },
+    onSuccess: () => { showSuccess("Mekanik berhasil diperbarui"); setFormModalVisible(false); },
+    onError: (msg) => showError(msg),
   });
   const { deleteMutation } = useDeleteMekanikMutation({
-    successAction: () => { showSuccess("Mekanik berhasil dihapus"); setDeleteModalVisible(false); },
+    onSuccess: () => { showSuccess("Mekanik berhasil dihapus"); setDeleteModalVisible(false); },
+    onError: (msg) => showError(msg),
   });
 
   const cardItems = mekaniks.map(toCardItem);

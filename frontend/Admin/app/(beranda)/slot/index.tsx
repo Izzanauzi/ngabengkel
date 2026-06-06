@@ -20,9 +20,9 @@ export default function SlotScreen() {
 
   const { slots, isLoading: slotsLoading } = useGetAllSlots();
   const { queue, isLoading: queueLoading } = useGetQueue();
-  const { updateSlotStatus } = useUpdateSlotStatus({ successAction: () => setStatusSlot(null) });
+  const { updateSlotStatus } = useUpdateSlotStatus({ onSuccess: () => setStatusSlot(null) });
   const { assignSlot } = useAssignSlot({
-    successAction: () => { setAssignItem(null); setAssignSlotId(null); },
+    onSuccess: () => { setAssignItem(null); setAssignSlotId(null); },
   });
 
   const availableSlots = slots.filter(s => s.status === 'Tersedia');

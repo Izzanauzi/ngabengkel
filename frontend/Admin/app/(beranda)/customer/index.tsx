@@ -30,7 +30,7 @@ export default function CustomerScreen() {
   const [isAddModalVisible, setAddModalVisible] = useState(false);
 
   const { customers, isLoading } = useGetAllCustomers();
-  const { createMutation } = useCreateCustomerMutation({ successAction: () => setAddModalVisible(false) });
+  const { createMutation } = useCreateCustomerMutation({ onSuccess: () => setAddModalVisible(false) });
 
   const cardItems = customers.map(toCardFormat);
   const filteredItems = cardItems.filter(item =>

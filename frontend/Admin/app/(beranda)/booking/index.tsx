@@ -25,7 +25,7 @@ import { useToast } from "../../../src/contexts/toast.context";
 
 export default function AdminBookingPage() {
   const router = useRouter();
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("semua");
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,14 +33,16 @@ export default function AdminBookingPage() {
   const { bookings, isLoading, refetch } = useGetAllBookings();
 
   const { acceptMutation } = useAcceptBookingMutation({
-    successAction: () => showSuccess("Booking berhasil disetujui"),
+    onSuccess: () => showSuccess("Booking berhasil disetujui"),
+    onError: (msg) => showError(msg),
   });
 
   const { rejectMutation } = useRejectBookingMutation({
-    successAction: () => {
+    onSuccess: () => {
       setRejectTarget(null);
       showSuccess("Booking berhasil ditolak");
     },
+    onError: (msg) => showError(msg),
   });
 
   const counts = useMemo(

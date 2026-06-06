@@ -94,22 +94,68 @@ func (r *WorkOrderRepository) GetHistoriByCustomerID(userID string) ([]model.Wor
 	return r.GetHistoriByUserID(userID)
 }
 
-// FindByID — detail WO + kendaraan, tanpa progress
+// FindByID — detail WO + kendaraan + mekanik + wo_items, tanpa progress
 func (r *WorkOrderRepository) FindByID(woID string) (*model.WorkOrderDetail, error) {
-	query := `
-		SELECT ` + woSelectCols + `
+	var wo model.WorkOrder
+	wo.Kendaraan = &model.Kendaraan{}
+	var mekanikNama sql.NullString
+
+	err := r.DB.QueryRow(`
+		SELECT
+			wo.wo_id, wo.nomor_wo, wo.user_id, wo.kendaraan_id, wo.booking_id,
+			wo.mekanik_id, wo.deskripsi_kerusakan, wo.estimasi_biaya, wo.biaya_jasa,
+			wo.status, wo.created_at,
+			k.merek, k.model, k.nomor_polisi,
+			m.nama
 		FROM ngabengkel.work_orders wo
 		JOIN ngabengkel.kendaraan k ON k.kendaraan_id = wo.kendaraan_id
+		LEFT JOIN ngabengkel.mekaniks m ON m.mekanik_id = wo.mekanik_id
 		WHERE wo.wo_id = $1
-	`
-	wo, err := scanWorkOrder(r.DB.QueryRow(query, woID))
+	`, woID).Scan(
+		&wo.WoID, &wo.NomorWO, &wo.UserID, &wo.KendaraanID, &wo.BookingID,
+		&wo.MekanikID, &wo.DeskripsiKerusakan, &wo.EstimasiBiaya, &wo.BiayaJasa,
+		&wo.Status, &wo.CreatedAt,
+		&wo.Kendaraan.Merek, &wo.Kendaraan.Model, &wo.Kendaraan.NomorPolisi,
+		&mekanikNama,
+	)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("work order tidak ditemukan")
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &model.WorkOrderDetail{WorkOrder: wo, Progress: []model.Progress{}}, nil
+
+	detail := &model.WorkOrderDetail{
+		WorkOrder: wo,
+		Progress:  []model.Progress{},
+		Items:     []model.WOItem{},
+	}
+	if mekanikNama.Valid {
+		detail.Mekanik = &model.MekanikInfo{Nama: mekanikNama.String}
+	}
+
+	itemRows, err := r.DB.Query(`
+		SELECT wo_item_id, wo_id, inventory_id, nama_item, jumlah, harga_satuan, subtotal
+		FROM ngabengkel.wo_items
+		WHERE wo_id = $1
+		ORDER BY wo_item_id ASC
+	`, woID)
+	if err != nil {
+		return nil, err
+	}
+	defer itemRows.Close()
+	for itemRows.Next() {
+		var item model.WOItem
+		if err := itemRows.Scan(
+			&item.WoItemID, &item.WoID, &item.InventoryID, &item.NamaItem,
+			&item.Jumlah, &item.HargaSatuan, &item.Subtotal,
+		); err != nil {
+			return nil, err
+		}
+		detail.Items = append(detail.Items, item)
+	}
+
+	return detail, nil
 }
 
 // UpdateStatus — ubah status WO
@@ -117,6 +163,24 @@ func (r *WorkOrderRepository) UpdateStatus(woID, status string) error {
 	_, err := r.DB.Exec(
 		`UPDATE ngabengkel.work_orders SET status = $1 WHERE wo_id = $2`,
 		status, woID,
+	)
+	return err
+}
+
+// FinishWO — set biaya_jasa dan ubah status ke 'selesai' sekaligus
+func (r *WorkOrderRepository) FinishWO(woID string, biayaJasa float64) error {
+	_, err := r.DB.Exec(
+		`UPDATE ngabengkel.work_orders SET biaya_jasa = $1, status = 'selesai' WHERE wo_id = $2`,
+		biayaJasa, woID,
+	)
+	return err
+}
+
+// UpdateBiaya — update biaya_jasa dan estimasi_biaya
+func (r *WorkOrderRepository) UpdateBiaya(woID string, biayaJasa, estimasiBiaya float64) error {
+	_, err := r.DB.Exec(
+		`UPDATE ngabengkel.work_orders SET biaya_jasa = $1, estimasi_biaya = $2 WHERE wo_id = $3`,
+		biayaJasa, estimasiBiaya, woID,
 	)
 	return err
 }

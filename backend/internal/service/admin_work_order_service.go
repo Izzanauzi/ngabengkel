@@ -123,8 +123,8 @@ func (s *AdminWorkOrderService) Suspend(woID string, req model.SuspendRequest) e
 	return s.WorkOrderRepo.UpdateStatus(woID, "menunggu_persetujuan")
 }
 
-// Finish — selesaikan WO: update status ke 'selesai'
-func (s *AdminWorkOrderService) Finish(woID string) error {
+// Finish — selesaikan WO: set biaya_jasa dan ubah status ke 'selesai'
+func (s *AdminWorkOrderService) Finish(woID string, req model.FinishRequest) error {
 	wo, err := s.WorkOrderRepo.FindByID(woID)
 	if err != nil {
 		return err
@@ -132,5 +132,14 @@ func (s *AdminWorkOrderService) Finish(woID string) error {
 	if wo.Status != "sedang_dikerjakan" {
 		return errors.New("work order tidak dalam status sedang dikerjakan")
 	}
-	return s.WorkOrderRepo.UpdateStatus(woID, "selesai")
+	return s.WorkOrderRepo.FinishWO(woID, req.BiayaJasa)
+}
+
+// UpdateBiaya — update biaya_jasa dan estimasi_biaya kapan saja
+func (s *AdminWorkOrderService) UpdateBiaya(woID string, req model.UpdateBiayaRequest) error {
+	_, err := s.WorkOrderRepo.FindByID(woID)
+	if err != nil {
+		return err
+	}
+	return s.WorkOrderRepo.UpdateBiaya(woID, req.BiayaJasa, req.EstimasiBiaya)
 }

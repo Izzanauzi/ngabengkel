@@ -1,7 +1,7 @@
 import { baseFetch } from "../utils/baseFetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { WorkOrder } from "../@types/workorder.types";
+import { WorkOrder, WorkOrderDetail } from "../@types/workorder.types";
 
 // ── GET ALL WORK ORDERS (customer: active) ────────────────────────────────────
 // Backend wajib ?type=active, tanpa itu return 400
@@ -31,12 +31,12 @@ export function useGetAllWorkOrders() {
 // ── GET WORK ORDER BY ID ──────────────────────────────────────────────────────
 
 export function useGetWorkOrderById(woId: string) {
-  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder>({
+  const { data, isLoading, isPending, refetch } = useQuery<WorkOrderDetail>({
     queryKey: ["getWorkOrder", woId],
     enabled: !!woId,
 
     queryFn: () =>
-      baseFetch<WorkOrder>({
+      baseFetch<WorkOrderDetail>({
         method: "GET",
         url: `/work-orders/${woId}`,
         options: { showError: false },

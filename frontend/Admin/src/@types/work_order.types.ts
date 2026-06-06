@@ -44,6 +44,16 @@ export interface WorkOrderItem {
   subtotal: number;
 }
 
+export interface WOItem {
+  wo_item_id: string;
+  wo_id: string;
+  inventory_id: string;
+  nama_item: string;
+  jumlah: number;
+  harga_satuan: number;
+  subtotal: number;
+}
+
 export interface Progress {
   progress_id: string;
   wo_id: string;
@@ -56,7 +66,7 @@ export interface Progress {
 
 export interface WorkOrderDetail extends WorkOrder {
   progress: Progress[];
-  items?: WorkOrderItem[];
+  items: WOItem[];
   tanggal_selesai?: string | null;
 }
 

@@ -19,7 +19,7 @@ export function AddProgressModal({ visible, woId, onClose }: AddProgressModalPro
   const { showSuccess } = useToast();
 
   const { uploadProgressMutation } = useUploadProgressMutation({
-    successAction: () => {
+    onSuccess: () => {
       showSuccess("Progress berhasil ditambahkan");
       setDeskripsi("");
       setFotoUrl("");
