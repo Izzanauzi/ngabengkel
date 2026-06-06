@@ -5,10 +5,16 @@ import "github.com/ngabengkel/backend/internal/model"
 // ── mockUserRepo ─────────────────────────────────────────────────────────────
 
 type mockUserRepo struct {
-	findByEmailFn   func(string) (*model.User, error)
-	emailExistsFn   func(string) (bool, error)
-	teleponExistsFn func(string) (bool, error)
-	createFn        func(*model.User) error
+	findByEmailFn        func(string) (*model.User, error)
+	emailExistsFn        func(string) (bool, error)
+	teleponExistsFn      func(string) (bool, error)
+	createFn             func(*model.User) error
+	getAllCustomersFn     func() ([]model.AdminCustomerResponse, error)
+	findCustomerByIDFn   func(string) (*model.AdminCustomerResponse, error)
+	createWalkInFn       func(*model.User) error
+	updateCustomerFn     func(string, string, string) error
+	deleteCustomerFn     func(string) error
+	hasActiveWOFn        func(string) (bool, error)
 }
 
 func (m *mockUserRepo) FindByEmail(email string) (*model.User, error) {
@@ -35,10 +41,47 @@ func (m *mockUserRepo) Create(user *model.User) error {
 	}
 	return nil
 }
+func (m *mockUserRepo) GetAllCustomers() ([]model.AdminCustomerResponse, error) {
+	if m.getAllCustomersFn != nil {
+		return m.getAllCustomersFn()
+	}
+	return []model.AdminCustomerResponse{}, nil
+}
+func (m *mockUserRepo) FindCustomerByID(userID string) (*model.AdminCustomerResponse, error) {
+	if m.findCustomerByIDFn != nil {
+		return m.findCustomerByIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) CreateWalkIn(user *model.User) error {
+	if m.createWalkInFn != nil {
+		return m.createWalkInFn(user)
+	}
+	return nil
+}
+func (m *mockUserRepo) UpdateCustomer(userID, nama, telepon string) error {
+	if m.updateCustomerFn != nil {
+		return m.updateCustomerFn(userID, nama, telepon)
+	}
+	return nil
+}
+func (m *mockUserRepo) DeleteCustomer(userID string) error {
+	if m.deleteCustomerFn != nil {
+		return m.deleteCustomerFn(userID)
+	}
+	return nil
+}
+func (m *mockUserRepo) HasActiveWO(userID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(userID)
+	}
+	return false, nil
+}
 
 // ── mockKendaraanRepo ────────────────────────────────────────────────────────
 
 type mockKendaraanRepo struct {
+	getAllFn                    func() ([]model.Kendaraan, error)
 	getByUserIDFn              func(string) ([]model.Kendaraan, error)
 	findByIDFn                 func(string) (*model.Kendaraan, error)
 	createFn                   func(*model.Kendaraan) error
@@ -51,6 +94,12 @@ type mockKendaraanRepo struct {
 	nomorRangkaExistsExcludeFn func(string, string) (bool, error)
 }
 
+func (m *mockKendaraanRepo) GetAll() ([]model.Kendaraan, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.Kendaraan{}, nil
+}
 func (m *mockKendaraanRepo) GetByUserID(userID string) ([]model.Kendaraan, error) {
 	if m.getByUserIDFn != nil {
 		return m.getByUserIDFn(userID)
@@ -115,11 +164,16 @@ func (m *mockKendaraanRepo) NomorRangkaExistsExclude(nomorRangka, kendaraanID st
 // ── mockWorkOrderRepo ────────────────────────────────────────────────────────
 
 type mockWorkOrderRepo struct {
-	getActiveByUserIDFn  func(string) ([]model.WorkOrder, error)
-	getHistoriByUserIDFn func(string) ([]model.WorkOrder, error)
-	findByIDFn           func(string) (*model.WorkOrderDetail, error)
-	getProgressByWOIDFn  func(string) ([]model.Progress, error)
-	updateStatusFn       func(string, string) error
+	getActiveByUserIDFn       func(string) ([]model.WorkOrder, error)
+	getHistoriByUserIDFn      func(string) ([]model.WorkOrder, error)
+	getHistoriByCustomerIDFn  func(string) ([]model.WorkOrder, error)
+	findByIDFn                func(string) (*model.WorkOrderDetail, error)
+	getProgressByWOIDFn       func(string) ([]model.Progress, error)
+	updateStatusFn            func(string, string) error
+	getAllFn                  func() ([]model.WorkOrder, error)
+	createFn                 func(*model.WorkOrder) error
+	addProgressFn            func(*model.Progress) error
+	generateNomorWOFn        func() (string, error)
 }
 
 func (m *mockWorkOrderRepo) GetActiveByUserID(userID string) ([]model.WorkOrder, error) {
@@ -133,6 +187,12 @@ func (m *mockWorkOrderRepo) GetHistoriByUserID(userID string) ([]model.WorkOrder
 		return m.getHistoriByUserIDFn(userID)
 	}
 	return nil, nil
+}
+func (m *mockWorkOrderRepo) GetHistoriByCustomerID(userID string) ([]model.WorkOrder, error) {
+	if m.getHistoriByCustomerIDFn != nil {
+		return m.getHistoriByCustomerIDFn(userID)
+	}
+	return []model.WorkOrder{}, nil
 }
 func (m *mockWorkOrderRepo) FindByID(woID string) (*model.WorkOrderDetail, error) {
 	if m.findByIDFn != nil {
@@ -152,6 +212,30 @@ func (m *mockWorkOrderRepo) UpdateStatus(woID, status string) error {
 	}
 	return nil
 }
+func (m *mockWorkOrderRepo) GetAll() ([]model.WorkOrder, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.WorkOrder{}, nil
+}
+func (m *mockWorkOrderRepo) Create(wo *model.WorkOrder) error {
+	if m.createFn != nil {
+		return m.createFn(wo)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) AddProgress(p *model.Progress) error {
+	if m.addProgressFn != nil {
+		return m.addProgressFn(p)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) GenerateNomorWO() (string, error) {
+	if m.generateNomorWOFn != nil {
+		return m.generateNomorWOFn()
+	}
+	return "WO-20260101-001", nil
+}
 
 // ── mockBookingRepo ──────────────────────────────────────────────────────────
 
@@ -161,6 +245,9 @@ type mockBookingRepo struct {
 	createFn           func(*model.Booking) error
 	updateStatusFn     func(string, string) error
 	hasActiveBookingFn func(string) (bool, error)
+	getPendingFn       func() ([]model.Booking, error)
+	acceptFn           func(string) error
+	rejectFn           func(string, string) error
 }
 
 func (m *mockBookingRepo) GetByUserID(userID string) ([]model.Booking, error) {
@@ -192,4 +279,214 @@ func (m *mockBookingRepo) HasActiveBooking(kendaraanID string) (bool, error) {
 		return m.hasActiveBookingFn(kendaraanID)
 	}
 	return false, nil
+}
+func (m *mockBookingRepo) GetPending() ([]model.Booking, error) {
+	if m.getPendingFn != nil {
+		return m.getPendingFn()
+	}
+	return []model.Booking{}, nil
+}
+func (m *mockBookingRepo) Accept(bookingID string) error {
+	if m.acceptFn != nil {
+		return m.acceptFn(bookingID)
+	}
+	return nil
+}
+func (m *mockBookingRepo) Reject(bookingID, alasanTolak string) error {
+	if m.rejectFn != nil {
+		return m.rejectFn(bookingID, alasanTolak)
+	}
+	return nil
+}
+
+// ── mockMekanikRepo ───────────────────────────────────────────────────────────
+
+type mockMekanikRepo struct {
+	getAllFn      func() ([]model.Mekanik, error)
+	findByIDFn   func(string) (*model.Mekanik, error)
+	createFn     func(*model.Mekanik) error
+	updateFn     func(*model.Mekanik) error
+	deleteFn     func(string) error
+	hasActiveWOFn func(string) (bool, error)
+}
+
+func (m *mockMekanikRepo) GetAll() ([]model.Mekanik, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.Mekanik{}, nil
+}
+func (m *mockMekanikRepo) FindByID(mekanikID string) (*model.Mekanik, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(mekanikID)
+	}
+	return nil, nil
+}
+func (m *mockMekanikRepo) Create(mekanik *model.Mekanik) error {
+	if m.createFn != nil {
+		return m.createFn(mekanik)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) Update(mekanik *model.Mekanik) error {
+	if m.updateFn != nil {
+		return m.updateFn(mekanik)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) Delete(mekanikID string) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(mekanikID)
+	}
+	return nil
+}
+func (m *mockMekanikRepo) HasActiveWO(mekanikID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(mekanikID)
+	}
+	return false, nil
+}
+
+// ── mockInventoryRepo ─────────────────────────────────────────────────────────
+
+type mockInventoryRepo struct {
+	getAllFn        func() ([]model.InventoryItem, error)
+	findByIDFn     func(string) (*model.InventoryItem, error)
+	createFn       func(*model.InventoryItem) error
+	updateFn       func(*model.InventoryItem) error
+	deleteFn       func(string) error
+	updateStokFn   func(string, int) error
+	addItemToWOFn  func(*model.WOItem) error
+	getWOItemsFn   func(string) ([]model.WOItem, error)
+}
+
+func (m *mockInventoryRepo) GetAll() ([]model.InventoryItem, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return []model.InventoryItem{}, nil
+}
+func (m *mockInventoryRepo) FindByID(inventoryID string) (*model.InventoryItem, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(inventoryID)
+	}
+	return nil, nil
+}
+func (m *mockInventoryRepo) Create(item *model.InventoryItem) error {
+	if m.createFn != nil {
+		return m.createFn(item)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) Update(item *model.InventoryItem) error {
+	if m.updateFn != nil {
+		return m.updateFn(item)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) Delete(inventoryID string) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(inventoryID)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) UpdateStok(inventoryID string, jumlah int) error {
+	if m.updateStokFn != nil {
+		return m.updateStokFn(inventoryID, jumlah)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) AddItemToWO(woItem *model.WOItem) error {
+	if m.addItemToWOFn != nil {
+		return m.addItemToWOFn(woItem)
+	}
+	return nil
+}
+func (m *mockInventoryRepo) GetWOItems(woID string) ([]model.WOItem, error) {
+	if m.getWOItemsFn != nil {
+		return m.getWOItemsFn(woID)
+	}
+	return []model.WOItem{}, nil
+}
+
+// ── mockSlotRepo ──────────────────────────────────────────────────────────────
+
+type mockSlotRepo struct {
+	getAllSlotsFn  func() ([]model.Slot, error)
+	countAntrianFn func() (int, error)
+	findByIDFn    func(string) (*model.Slot, error)
+	updateStatusFn func(string, string) error
+	assignWOFn    func(string, string) error
+	hasActiveWOFn func(string) (bool, error)
+	getQueueFn    func() ([]model.QueueItem, error)
+}
+
+func (m *mockSlotRepo) GetAllSlots() ([]model.Slot, error) {
+	if m.getAllSlotsFn != nil {
+		return m.getAllSlotsFn()
+	}
+	return []model.Slot{}, nil
+}
+func (m *mockSlotRepo) CountAntrian() (int, error) {
+	if m.countAntrianFn != nil {
+		return m.countAntrianFn()
+	}
+	return 0, nil
+}
+func (m *mockSlotRepo) FindByID(slotID string) (*model.Slot, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(slotID)
+	}
+	return nil, nil
+}
+func (m *mockSlotRepo) UpdateStatus(slotID, status string) error {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(slotID, status)
+	}
+	return nil
+}
+func (m *mockSlotRepo) AssignWO(slotID, woID string) error {
+	if m.assignWOFn != nil {
+		return m.assignWOFn(slotID, woID)
+	}
+	return nil
+}
+func (m *mockSlotRepo) HasActiveWO(slotID string) (bool, error) {
+	if m.hasActiveWOFn != nil {
+		return m.hasActiveWOFn(slotID)
+	}
+	return false, nil
+}
+func (m *mockSlotRepo) GetQueue() ([]model.QueueItem, error) {
+	if m.getQueueFn != nil {
+		return m.getQueueFn()
+	}
+	return []model.QueueItem{}, nil
+}
+
+// ── mockTransactionRepo ───────────────────────────────────────────────────────
+
+type mockTransactionRepo struct {
+	createFn       func(*model.Transaction) error
+	getByWOIDFn    func(string) (*model.Transaction, error)
+	getByPeriodeFn func(string, string) ([]model.Transaction, error)
+}
+
+func (m *mockTransactionRepo) Create(t *model.Transaction) error {
+	if m.createFn != nil {
+		return m.createFn(t)
+	}
+	return nil
+}
+func (m *mockTransactionRepo) GetByWOID(woID string) (*model.Transaction, error) {
+	if m.getByWOIDFn != nil {
+		return m.getByWOIDFn(woID)
+	}
+	return nil, nil
+}
+func (m *mockTransactionRepo) GetByPeriode(from, to string) ([]model.Transaction, error) {
+	if m.getByPeriodeFn != nil {
+		return m.getByPeriodeFn(from, to)
+	}
+	return []model.Transaction{}, nil
 }

@@ -8,9 +8,10 @@ interface HistoryCardProps {
   date: string;
   price: string;
   status: string;
+  onPress?: () => void;
 }
 
-export default function HistoryCard({ title, code, services, date, price, status }: HistoryCardProps) {
+export default function HistoryCard({ title, code, services, date, price, status, onPress }: HistoryCardProps) {
   return (
     <View style={styles.card}>
       {/* HEADER CARD */}
@@ -41,7 +42,7 @@ export default function HistoryCard({ title, code, services, date, price, status
           <Text style={styles.price}>{price}</Text>
         </View>
 
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={onPress}>
           <Text style={styles.buttonText}>Lihat Detail</Text>
         </TouchableOpacity>
       </View>

@@ -4,6 +4,34 @@ import { useMemo } from "react";
 
 
 
+// ── GET BOOKING BY ID ─────────────────────────────────────────────────────────
+
+export function useGetBookingById(bookingId: string) {
+  const { data, isLoading, refetch } = useQuery<Booking[]>({
+    queryKey: ["getAllBookings"],
+    enabled: !!bookingId,
+ 
+    queryFn: () =>
+      baseFetch<Booking[]>({
+        method: "GET",
+        url: "/bookings",
+        options: { showError: false },
+      }).then((res) => res ?? []),
+ 
+    retry: false,
+    staleTime: 2 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+ 
+  const booking = useMemo(
+    () => data?.find((b) => b.booking_id === bookingId) ?? null,
+    [data, bookingId]
+  );
+ 
+  return { booking, isLoading, refetch };
+}
+
 // ── GET ALL BOOKINGS ──────────────────────────────────────────────────────────
 
 export function useGetAllBookings() {
@@ -26,7 +54,7 @@ export function useGetAllBookings() {
   const bookings = useMemo(() => data ?? [], [data]);
 
   const bookingAktif = useMemo(
-    () => bookings.filter((b) => b.status === "menunggu_konfirmasi" || b.status === "dikonfirmasi"),
+    () => bookings.filter((b) => b.status === "menunggu_konfirmasi" || b.status === "disetujui"),
     [bookings]
   );
 
@@ -57,7 +85,6 @@ export function useCreateBooking({ successAction }: UseCreateBookingProps) {
     },
 
     onError: (_error) => {
-      // handle error di komponen kalau perlu
     },
   });
 
@@ -69,10 +96,10 @@ export function useCreateBooking({ successAction }: UseCreateBookingProps) {
 interface UseCancelBookingProps {
   successAction: () => void;
 }
-
+ 
 export function useCancelBooking({ successAction }: UseCancelBookingProps) {
   const queryClient = useQueryClient();
-
+ 
   const cancelBookingMutation = useMutation({
     mutationFn: (bookingId: string) =>
       baseFetch<{ message: string }>({
@@ -80,14 +107,14 @@ export function useCancelBooking({ successAction }: UseCancelBookingProps) {
         url: `/bookings/${bookingId}`,
         options: { showError: false },
       }),
-
+ 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["getAllBookings"] });
       successAction();
     },
-
+ 
     onError: (_error) => {},
   });
-
+ 
   return { cancelBookingMutation };
 }

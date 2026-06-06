@@ -1,17 +1,4 @@
-/**
- * TEMPLATE HOOKS - React Native
- *
- * Cara pakai:
- * 1. Duplikat file ini, ganti nama sesuai domain (misal: division.hooks.ts)
- * 2. Ganti semua kata "Test/test/tests" dengan nama entity kamu
- * 3. Sesuaikan endpoint URL-nya
- * 4. Hapus komentar yang tidak diperlukan
- *
- * Dependensi:
- * - @tanstack/react-query  →  npm install @tanstack/react-query
- */
-
- import { baseFetch } from "@/utils/baseFetch";
+import { baseFetch } from "@/utils/baseFetch";
  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
  import { useMemo } from "react";
  

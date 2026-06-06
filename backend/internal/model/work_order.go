@@ -31,3 +31,24 @@ type WorkOrderDetail struct {
 	WorkOrder
 	Progress []Progress `json:"progress"`
 }
+
+type WorkOrderRequest struct {
+	UserID             *string  `json:"user_id"`
+	KendaraanID        string   `json:"kendaraan_id"`
+	BookingID          *string  `json:"booking_id"`
+	MekanikID          *string  `json:"mekanik_id"`
+	DeskripsiKerusakan *string  `json:"deskripsi_kerusakan"`
+	EstimasiBiaya      *float64 `json:"estimasi_biaya"`
+}
+
+type ProgressRequest struct {
+	Deskripsi        string   `json:"deskripsi"`
+	Tipe             string   `json:"tipe"`
+	FotoURL          *string  `json:"foto_url"`
+	EstBiayaTambahan *float64 `json:"est_biaya_tambahan"`
+}
+
+type SuspendRequest struct {
+	Deskripsi        string  `json:"deskripsi"`
+	EstBiayaTambahan float64 `json:"est_biaya_tambahan"`
+}

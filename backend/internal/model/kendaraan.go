@@ -12,6 +12,7 @@ type Kendaraan struct {
 	Warna       *string   `json:"warna"`
 	NomorRangka *string   `json:"nomor_rangka"`
 	CreatedAt   time.Time `json:"created_at"`
+	NamaPemilik *string   `json:"nama_pemilik,omitempty"`
 }
 
 type KendaraanRequest struct {

@@ -7,6 +7,7 @@ type Booking struct {
 	UserID      string     `json:"user_id"`
 	KendaraanID string     `json:"kendaraan_id"`
 	Kendaraan   *Kendaraan `json:"kendaraan,omitempty"`
+	User        *User      `json:"user,omitempty"`
 	ETA         time.Time  `json:"eta"`
 	KeluhanAwal *string    `json:"keluhan_awal"`
 	Status      string     `json:"status"`

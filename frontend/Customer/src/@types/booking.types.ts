@@ -8,7 +8,7 @@ export interface Booking {
   kendaraan?: Kendaraan | null;  
   eta: string;                   
   keluhan_awal: string | null;    
-  status: "menunggu_konfirmasi" | "dikonfirmasi" | "dibatalkan" | string;
+  status: "menunggu_konfirmasi" | "disetujui" | "ditolak" | "dibatalkan" | string;
   alasan_tolak: string | null;    
   created_at: string;           
 }

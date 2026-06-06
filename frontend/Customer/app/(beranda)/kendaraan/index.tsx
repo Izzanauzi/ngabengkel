@@ -1,11 +1,4 @@
-/**
- * app/(beranda)/kendaraan/index.tsx
- *
- * Screen list semua kendaraan milik user.
- * Tipis — hanya rakit komponen + hubungkan hooks.
- */
-
- import React, { useCallback } from "react";
+import React, { useCallback } from "react";
  import {
    ActivityIndicator,
    Alert,
@@ -17,27 +10,29 @@
  } from "react-native";
  import { router } from "expo-router";
  import { useGetAllKendaraan, useDeleteKendaraanMutation } from "../../../src/hooks/kendaraan.hooks";
+ import { useAuth } from "../../../src/contexts/auth.context";
  import { KendaraanCard } from "../../../src/components/kendaraan/kendaraanCard";
  import { Kendaraan } from "../../../src/@types/kendaraan.types";
  
  export default function KendaraanScreen() {
-   // ── Data ──────────────────────────────────────────────────
-   const { kendaraanList, isLoading, refetch } = useGetAllKendaraan();
+   const { user } = useAuth();
+   // Data
+   const { kendaraanList, isLoading, refetch } = useGetAllKendaraan(user?.user_id ?? '');
  
-   // ── Mutation ──────────────────────────────────────────────
+   // Mutation
    const { deleteKendaraanMutation } = useDeleteKendaraanMutation({
      successAction: () => refetch(),
      onError: (message) => Alert.alert("Gagal", message),
    });
  
-   // ── Handlers ──────────────────────────────────────────────
+   // Handlers
    const handlePressDetail = useCallback((id: string) => {
      router.push(`/(beranda)/kendaraan/${id}`);
    }, []);
  
    const handlePressEdit = useCallback((id: string) => {
-     router.push(`/(beranda)/kendaraan/${id}/edit`);
-   }, []);
+    router.push(`/(beranda)/kendaraan/${id}/edit`) 
+  }, [])
  
    const handlePressDelete = useCallback(
      (id: string) => {
@@ -73,7 +68,7 @@
      [handlePressDetail, handlePressEdit, handlePressDelete]
    );
  
-   // ── Loading ───────────────────────────────────────────────
+   // Loading
    if (isLoading) {
      return (
        <View style={styles.center}>
@@ -82,7 +77,7 @@
      );
    }
  
-   // ── Empty state ───────────────────────────────────────────
+   // Empty state
    if (kendaraanList.length === 0) {
      return (
        <View style={styles.center}>
@@ -94,7 +89,7 @@
      );
    }
  
-   // ── Main ──────────────────────────────────────────────────
+   // Main 
    return (
      <View style={styles.container}>
        <FlatList
@@ -107,7 +102,7 @@
        <TouchableOpacity style={styles.fab} onPress={handlePressAdd}>
          <Text style={styles.fabText}>+ Tambah</Text>
        </TouchableOpacity>
-     </View>
+       </View>
    );
  }
  

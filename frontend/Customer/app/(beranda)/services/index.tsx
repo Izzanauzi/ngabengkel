@@ -1,3 +1,4 @@
+import RequireAuth from '../../../src/components/auth/requireAuth'
 import React, { useState } from "react";
 import {
   View,
@@ -13,40 +14,46 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useGetAllBookings, useCancelBooking } from "../../../src/hooks/booking.hooks";
-
-// ── Dummy servis aktif (ganti dengan API WO nanti) ────────────────────────────
-const DUMMY_SERVIS_AKTIF = [
-  {
-    id: "1",
-    nomorWO: "WO-20250801-003",
-    status: "Sedang Dikerjakan",
-    kendaraan: "Honda Vario 150",
-    platNomor: "D 1234 ABC",
-    mekanik: "Ahmad Fauzi",
-    mulaiServis: "01 Aug 2025, 10:00",
-  },
-];
+import { useGetAllWorkOrders } from "../../../src/hooks/workorder.hooks";
+import { useToast } from "../../../src/contexts/toast.context";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const getStatusStyle = (status: string) => {
   switch (status) {
-    case "Sedang Dikerjakan":
+    case "sedang_dikerjakan":
       return { bg: "#FFF3E0", text: "#E65100", dot: "#FF6D00" };
+    case "menunggu_persetujuan":
+      return { bg: "#FFF9C4", text: "#F57F17", dot: "#F9A825" };
+    case "dibuat":
+      return { bg: "#E3F2FD", text: "#1565C0", dot: "#1976D2" };
     case "menunggu_konfirmasi":
       return { bg: "#FFF9C4", text: "#F57F17", dot: "#F9A825" };
-    case "dikonfirmasi":
+    case "disetujui":
       return { bg: "#E8F5E9", text: "#2E7D32", dot: "#43A047" };
     case "dibatalkan":
+    case "ditolak":
       return { bg: "#FFEBEE", text: "#C62828", dot: "#E53935" };
     default:
       return { bg: "#F5F5F5", text: "#616161", dot: "#9E9E9E" };
   }
 };
 
-const getStatusLabel = (status: string) => {
+const getWOStatusLabel = (status: string) => {
+  switch (status) {
+    case "dibuat": return "Baru Dibuat";
+    case "sedang_dikerjakan": return "Sedang Dikerjakan";
+    case "menunggu_persetujuan": return "Menunggu Persetujuan";
+    case "selesai": return "Selesai";
+    case "lunas": return "Lunas";
+    default: return status;
+  }
+};
+
+const getBookingStatusLabel = (status: string) => {
   switch (status) {
     case "menunggu_konfirmasi": return "Menunggu Konfirmasi";
-    case "dikonfirmasi": return "Dikonfirmasi";
+    case "disetujui": return "Disetujui";
+    case "ditolak": return "Ditolak";
     case "dibatalkan": return "Dibatalkan";
     default: return status;
   }
@@ -65,15 +72,27 @@ const formatETA = (eta: string) => {
 export default function MenuServis() {
   const [activeTab, setActiveTab] = useState<"aktif" | "booking">("aktif");
 
-  const { bookings, isLoading, refetch } = useGetAllBookings();
+  const { workOrders, isLoading: woLoading, refetch: refetchWO } = useGetAllWorkOrders();
+  const { bookings, isLoading: bookingLoading, refetch: refetchBooking } = useGetAllBookings();
+  const { showSuccess } = useToast();
 
   const { cancelBookingMutation } = useCancelBooking({
-    successAction: () => refetch(),
+    successAction: () => {
+      showSuccess("Booking berhasil dibatalkan.");
+      refetchBooking();
+    },
   });
 
+  const isLoading = woLoading || bookingLoading;
+
   const bookingAktif = bookings.filter(
-    (b) => b.status === "menunggu_konfirmasi" || b.status === "dikonfirmasi"
+    (b) => b.status === "menunggu_konfirmasi" || b.status === "disetujui"
   );
+
+  const handleRefresh = () => {
+    refetchWO();
+    refetchBooking();
+  };
 
   const handleCancel = (bookingId: string) => {
     Alert.alert("Batalkan Booking", "Apakah kamu yakin ingin membatalkan booking ini?", [
@@ -87,6 +106,7 @@ export default function MenuServis() {
   };
 
   return (
+    <RequireAuth>
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
@@ -102,6 +122,11 @@ export default function MenuServis() {
           <Text style={[styles.tabText, activeTab === "aktif" && styles.tabTextActive]}>
             Servis Aktif
           </Text>
+          {workOrders.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{workOrders.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === "booking" && styles.tabActive]}
@@ -121,49 +146,60 @@ export default function MenuServis() {
       {/* Content */}
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} colors={["#1565C0"]} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} colors={["#1565C0"]} />}
       >
         {/* ── Tab Servis Aktif ── */}
         {activeTab === "aktif" && (
           <>
-            {DUMMY_SERVIS_AKTIF.length === 0 ? (
+            {woLoading ? (
+              <ActivityIndicator color="#1565C0" style={{ marginTop: 40 }} />
+            ) : workOrders.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="construct-outline" size={48} color="#BDBDBD" />
                 <Text style={styles.emptyText}>Tidak ada servis aktif</Text>
               </View>
             ) : (
               <>
-                {DUMMY_SERVIS_AKTIF.map((item) => {
+                {workOrders.map((item) => {
                   const st = getStatusStyle(item.status);
+                  const kendaraanLabel = item.kendaraan
+                    ? `${item.kendaraan.merek} ${item.kendaraan.model}`.trim()
+                    : item.kendaraan_id;
                   return (
-                    <View key={item.id} style={styles.card}>
+                    <View key={item.wo_id} style={styles.card}>
                       <View style={styles.cardHeader}>
-                        <Text style={styles.nomorWO}>{item.nomorWO}</Text>
+                        <Text style={styles.nomorWO}>{item.nomor_wo}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                           <View style={[styles.statusDot, { backgroundColor: st.dot }]} />
-                          <Text style={[styles.statusText, { color: st.text }]}>{item.status}</Text>
+                          <Text style={[styles.statusText, { color: st.text }]}>
+                            {getWOStatusLabel(item.status)}
+                          </Text>
                         </View>
                       </View>
 
                       <View style={styles.kendaraanRow}>
                         <View style={[styles.dotIndicator, { backgroundColor: st.dot }]} />
-                        <Text style={styles.kendaraanText}>{item.kendaraan} · {item.platNomor}</Text>
+                        <Text style={styles.kendaraanText}>
+                          {kendaraanLabel} · {item.kendaraan?.nomor_polisi ?? "-"}
+                        </Text>
                       </View>
 
                       <View style={styles.infoRow}>
                         <View style={styles.infoItem}>
                           <Text style={styles.infoLabel}>Mekanik</Text>
-                          <Text style={styles.infoValue}>{item.mekanik}</Text>
+                          <Text style={styles.infoValue}>
+                            {item.mekanik?.nama ?? "Belum ditugaskan"}
+                          </Text>
                         </View>
                         <View style={styles.infoItem}>
                           <Text style={styles.infoLabel}>Mulai Servis</Text>
-                          <Text style={styles.infoValue}>{item.mulaiServis}</Text>
+                          <Text style={styles.infoValue}>{formatETA(item.created_at)}</Text>
                         </View>
                       </View>
 
                       <TouchableOpacity
                         style={styles.detailBtn}
-                        onPress={() => router.push(`/(beranda)/services/${item.id}`)}
+                        onPress={() => router.push(`/(beranda)/services/${item.wo_id}`)}
                       >
                         <Text style={styles.detailBtnText}>Lihat Detail</Text>
                         <Ionicons name="chevron-forward" size={14} color="#1565C0" />
@@ -172,7 +208,7 @@ export default function MenuServis() {
                   );
                 })}
                 <Text style={styles.footerNote}>
-                  Menampilkan {DUMMY_SERVIS_AKTIF.length} dari {DUMMY_SERVIS_AKTIF.length} servis aktif
+                  Menampilkan {workOrders.length} servis aktif
                 </Text>
               </>
             )}
@@ -182,7 +218,7 @@ export default function MenuServis() {
         {/* ── Tab Booking ── */}
         {activeTab === "booking" && (
           <>
-            {isLoading ? (
+            {bookingLoading ? (
               <ActivityIndicator color="#1565C0" style={{ marginTop: 40 }} />
             ) : bookings.length === 0 ? (
               <View style={styles.empty}>
@@ -200,12 +236,12 @@ export default function MenuServis() {
                   <View key={item.booking_id} style={styles.card}>
                     <View style={styles.cardHeader}>
                       <Text style={styles.nomorWO} numberOfLines={1}>
-                        {item.booking_id.slice(0, 8).toUpperCase()}
+                        #{item.booking_id.slice(0, 8).toUpperCase()}
                       </Text>
                       <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                         <View style={[styles.statusDot, { backgroundColor: st.dot }]} />
                         <Text style={[styles.statusText, { color: st.text }]}>
-                          {getStatusLabel(item.status)}
+                          {getBookingStatusLabel(item.status)}
                         </Text>
                       </View>
                     </View>
@@ -226,15 +262,24 @@ export default function MenuServis() {
                       </Text>
                     )}
 
-                    {item.status === "menunggu_konfirmasi" && (
+                    <View style={styles.bookingActions}>
                       <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={() => handleCancel(item.booking_id)}
+                        style={styles.detailBtn}
+                        onPress={() => router.push(`/(beranda)/booking/${item.booking_id}`)}
                       >
-                        <Ionicons name="close-circle-outline" size={14} color="#E53935" />
-                        <Text style={styles.cancelBtnText}>Batalkan</Text>
+                        <Text style={styles.detailBtnText}>Lihat Detail</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#1565C0" />
                       </TouchableOpacity>
-                    )}
+                      {item.status === "menunggu_konfirmasi" && (
+                        <TouchableOpacity
+                          style={styles.cancelBtn}
+                          onPress={() => handleCancel(item.booking_id)}
+                        >
+                          <Ionicons name="close-circle-outline" size={14} color="#E53935" />
+                          <Text style={styles.cancelBtnText}>Batalkan</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 );
               })
@@ -251,7 +296,8 @@ export default function MenuServis() {
         <Ionicons name="add" size={20} color="#FFF" />
         <Text style={styles.fabText}>Booking Servis Baru</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+      </SafeAreaView>
+      </RequireAuth>
   );
 }
 
@@ -305,6 +351,7 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 13, color: "#1A1A2E", fontWeight: "600" },
 
   detailBtn: {
+    flex: 1,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: "#1565C0", borderRadius: 8, paddingVertical: 8, gap: 4,
   },
@@ -315,9 +362,11 @@ const styles = StyleSheet.create({
 
   keluhanText: { fontSize: 12, color: "#888", fontStyle: "italic", marginBottom: 8 },
 
+  bookingActions: { flexDirection: "row", gap: 8, marginTop: 4 },
   cancelBtn: {
+    flex: 1,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: "#E53935", borderRadius: 8, paddingVertical: 8, gap: 4, marginTop: 4,
+    borderWidth: 1.5, borderColor: "#E53935", borderRadius: 8, paddingVertical: 8, gap: 4,
   },
   cancelBtnText: { color: "#E53935", fontWeight: "600", fontSize: 13 },
 

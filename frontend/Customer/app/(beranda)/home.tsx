@@ -7,45 +7,111 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useGetSchedule } from "../../src/hooks/schedule.hooks";
-import { useAuth } from "@/src/contexts/auth.context";
+import { useAuth } from "../../src/contexts/auth.context";
 import { useGetAllKendaraan } from "../../src/hooks/kendaraan.hooks";
+import { useGetAllWorkOrders, useGetHistory } from "../../src/hooks/workorder.hooks";
+import { useGetAllBookings } from "../../src/hooks/booking.hooks";
+import { formatRupiah } from "../../src/utils/helper";
+import { Kendaraan } from "../../src/@types/kendaraan.types";
 
-// ── Dummy Data (ganti dengan API nanti) ───────────────────────────────────────
-const DUMMY_USER_NAME = "Budi";
-const DUMMY_SERVIS_AKTIF = {
-  nomorWO: "WO-20250801-003",
-  status: "Sedang Dikerjakan",
-  kendaraan: "Honda Vario 150",
-  platNomor: "D 1234 ABC",
+const WO_STATUS_LABEL: Record<string, string> = {
+  dibuat: "Baru Dibuat",
+  sedang_dikerjakan: "Sedang Dikerjakan",
+  menunggu_persetujuan: "Menunggu Persetujuan",
+  selesai: "Selesai",
+  lunas: "Lunas",
 };
-const DUMMY_SERVIS_TERAKHIR = [
-  { id: "1", kendaraan: "Honda Vario 150", tanggal: "20 Jul 2025", biaya: "Rp 250.000", status: "Lunas" },
-  { id: "2", kendaraan: "Honda Beat 2020", tanggal: "15 Jul 2025", biaya: "Rp 250.000", status: "Lunas" },
-];
+
+const BOOKING_STATUS_LABEL: Record<string, string> = {
+  menunggu_konfirmasi: "Menunggu Konfirmasi",
+  disetujui: "Disetujui",
+};
+
+const formatTanggal = (dateStr: string) => {
+  try {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+// ── Kendaraan mini card ───────────────────────────────────────────────────────
+function KendaraanCard({ item }: { item: Kendaraan }) {
+  return (
+    <TouchableOpacity
+      style={styles.kendaraanCard}
+      onPress={() => router.push(`/(beranda)/kendaraan/${item.kendaraan_id}`)}
+      activeOpacity={0.75}
+    >
+      <View style={styles.kendaraanIconWrap}>
+        <Ionicons name="bicycle" size={22} color="#1565C0" />
+      </View>
+      <View style={styles.kendaraanInfo}>
+        <Text style={styles.kendaraanNama} numberOfLines={1}>
+          {item.merek} {item.model}
+        </Text>
+        <Text style={styles.kendaraanPlat}>{item.nomor_polisi}</Text>
+        <Text style={styles.kendaraanTahun}>{item.tahun}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+    </TouchableOpacity>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Beranda() {
-  const { slots, jumlahAntrian, isLoading, refetch } = useGetSchedule();
+  const { token, user } = useAuth();
+  const isLogin = !!token;
+
+  const { slots, jumlahAntrian, isLoading: scheduleLoading, refetch: refetchSchedule } = useGetSchedule();
+  const { kendaraanList, isLoading: kendaraanLoading, refetch: refetchKendaraan } = useGetAllKendaraan(user?.user_id ?? '');
+  const { workOrders, isLoading: woLoading, refetch: refetchWO } = useGetAllWorkOrders();
+  const { bookings, isLoading: bookingLoading, refetch: refetchBooking } = useGetAllBookings();
+  const { history, isLoading: historyLoading, refetch: refetchHistory } = useGetHistory();
 
   const slotTersedia = slots.filter((s) => s.status === "tersedia").length;
+  const isLoading = scheduleLoading || (isLogin && (kendaraanLoading || woLoading || bookingLoading || historyLoading));
+
+  const activeWO = workOrders[0] ?? null;
+  const activeBooking = bookings.find(
+    (b) => b.status === "menunggu_konfirmasi" || b.status === "disetujui"
+  ) ?? null;
+  const servisTerakhir = history.slice(0, 2);
+
+  const handleRefresh = () => {
+    refetchSchedule();
+    if (isLogin) {
+      refetchKendaraan();
+      refetchWO();
+      refetchBooking();
+      refetchHistory();
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} colors={["#1565C0"]} />
+          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} colors={["#1565C0"]} />
         }
       >
         {/* ── Header ── */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Halo, {DUMMY_USER_NAME} 👋</Text>
+            <Text style={styles.greeting}>
+              Halo, {isLogin ? (user?.nama ?? "Pelanggan") : "Tamu"} 👋
+            </Text>
             <Text style={styles.subGreeting}>Selamat datang kembali di Ngabengkel</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn}>
@@ -53,7 +119,7 @@ export default function Beranda() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Kondisi Bengkel ── */}
+        {/* ── Kondisi Bengkel (publik) ── */}
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardTitle}>Kondisi Bengkel Sekarang</Text>
@@ -63,7 +129,7 @@ export default function Beranda() {
             </View>
           </View>
 
-          {isLoading ? (
+          {scheduleLoading ? (
             <ActivityIndicator color="#1565C0" style={{ marginVertical: 16 }} />
           ) : (
             <View style={styles.statsRow}>
@@ -79,52 +145,193 @@ export default function Beranda() {
           )}
         </View>
 
-        {/* ── Servis Aktif ── */}
-        {DUMMY_SERVIS_AKTIF && (
-          <View style={[styles.card, styles.servisAktifCard]}>
-            <View style={styles.servisAktifHeader}>
-              <Text style={styles.servisAktifWO}>{DUMMY_SERVIS_AKTIF.nomorWO}</Text>
-              <View style={styles.statusBadge}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>{DUMMY_SERVIS_AKTIF.status}</Text>
-              </View>
-            </View>
-            <Text style={styles.servisAktifKendaraan}>{DUMMY_SERVIS_AKTIF.kendaraan}</Text>
-            <Text style={styles.servisAktifPlat}>{DUMMY_SERVIS_AKTIF.platNomor}</Text>
+        {/* ── Belum Login ── */}
+        {!isLogin && (
+          <View style={styles.loginPromptCard}>
+            <Ionicons name="lock-closed-outline" size={32} color="#1565C0" />
+            <Text style={styles.loginPromptTitle}>Belum Masuk</Text>
+            <Text style={styles.loginPromptSub}>
+              Login untuk melihat kendaraan, riwayat servis, dan melakukan booking.
+            </Text>
             <TouchableOpacity
-              style={styles.detailBtn}
-              onPress={() => router.push("/(beranda)/services/1")}
+              style={styles.loginBtn}
+              onPress={() => router.push("/(auth)/login")}
             >
-              <Text style={styles.detailBtnText}>Lihat Detail</Text>
-              <Ionicons name="chevron-forward" size={14} color="#1565C0" />
+              <Text style={styles.loginBtnText}>Masuk Sekarang</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
+              <Text style={styles.registerText}>
+                Belum punya akun? <Text style={styles.registerLink}>Daftar</Text>
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Booking Servis ── */}
+        {/* ── Sudah Login ── */}
+        {isLogin && (
+          <>
+            {/* Kendaraan Saya */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Kendaraan Saya</Text>
+              <TouchableOpacity
+                style={styles.sectionLink}
+                onPress={() => router.push("/(beranda)/kendaraan")}
+              >
+                <Text style={styles.sectionLinkText}>Lihat semua</Text>
+                <Ionicons name="chevron-forward" size={13} color="#1565C0" />
+              </TouchableOpacity>
+            </View>
+
+            {kendaraanLoading ? (
+              <ActivityIndicator color="#1565C0" style={{ marginBottom: 12 }} />
+            ) : kendaraanList.length === 0 ? (
+              <TouchableOpacity
+                style={styles.tambahKendaraanCard}
+                onPress={() => router.push("/(beranda)/kendaraan/create")}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#1565C0" />
+                <Text style={styles.tambahKendaraanText}>Tambah Kendaraan</Text>
+              </TouchableOpacity>
+            ) : (
+              <FlatList
+                data={kendaraanList}
+                keyExtractor={(item) => item.kendaraan_id}
+                renderItem={({ item }) => <KendaraanCard item={item} />}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.kendaraanScroll}
+                scrollEnabled={kendaraanList.length > 1}
+              />
+            )}
+
+            {/* Servis Aktif */}
+            {woLoading ? (
+              <ActivityIndicator color="#1565C0" style={{ marginVertical: 8 }} />
+            ) : activeWO ? (
+              <>
+                <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>Servis Aktif</Text>
+                <TouchableOpacity
+                  style={[styles.card, styles.aktifCard]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/(beranda)/services/${activeWO.wo_id}`)}
+                >
+                  <View style={styles.aktifHeader}>
+                    <Text style={styles.aktifWONo}>{activeWO.nomor_wo}</Text>
+                    <View style={styles.statusBadge}>
+                      <View style={[styles.statusDot, { backgroundColor: "#FF6D00" }]} />
+                      <Text style={styles.statusText}>
+                        {WO_STATUS_LABEL[activeWO.status] ?? activeWO.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aktifKendaraan}>
+                    {activeWO.kendaraan
+                      ? `${activeWO.kendaraan.merek} ${activeWO.kendaraan.model}`
+                      : "Kendaraan"}
+                  </Text>
+                  <Text style={styles.aktifPlat}>
+                    {activeWO.kendaraan?.nomor_polisi ?? "-"}
+                  </Text>
+                  <View style={styles.aktifFooter}>
+                    <Text style={styles.aktifMekanik}>
+                      Mekanik: {activeWO.mekanik?.nama ?? "Belum ditugaskan"}
+                    </Text>
+                    <View style={styles.detailChip}>
+                      <Text style={styles.detailChipText}>Lihat Detail</Text>
+                      <Ionicons name="chevron-forward" size={12} color="#1565C0" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : activeBooking ? (
+              <>
+                <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>Booking Aktif</Text>
+                <TouchableOpacity
+                  style={[styles.card, styles.bookingAktifCard]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push("/(beranda)/services")}
+                >
+                  <View style={styles.aktifHeader}>
+                    <Text style={styles.aktifWONo}>
+                      #{activeBooking.booking_id.slice(0, 8).toUpperCase()}
+                    </Text>
+                    <View style={[styles.statusBadge, { backgroundColor: "#FFF9C4" }]}>
+                      <View style={[styles.statusDot, { backgroundColor: "#F9A825" }]} />
+                      <Text style={[styles.statusText, { color: "#F57F17" }]}>
+                        {BOOKING_STATUS_LABEL[activeBooking.status] ?? activeBooking.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aktifKendaraan}>
+                    {activeBooking.kendaraan
+                      ? `${activeBooking.kendaraan.merek} ${activeBooking.kendaraan.model}`
+                      : "Kendaraan"}
+                  </Text>
+                  <Text style={styles.aktifPlat}>
+                    ETA: {formatTanggal(activeBooking.eta)}
+                  </Text>
+                  <View style={styles.aktifFooter}>
+                    <Text style={styles.aktifMekanik}>
+                      {activeBooking.keluhan_awal ?? "Tidak ada keluhan"}
+                    </Text>
+                    <View style={styles.detailChip}>
+                      <Text style={styles.detailChipText}>Lihat Detail</Text>
+                      <Ionicons name="chevron-forward" size={12} color="#1565C0" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </>
+        )}
+
+        {/* ── Booking Servis Button ── */}
         <TouchableOpacity
           style={styles.bookingBtn}
-          onPress={() => router.push("/(beranda)/booking")}
+          onPress={() =>
+            isLogin
+              ? router.push("/(beranda)/booking")
+              : router.push("/(auth)/login")
+          }
         >
           <Ionicons name="construct-outline" size={18} color="#FFF" />
           <Text style={styles.bookingBtnText}>Booking Servis</Text>
         </TouchableOpacity>
 
         {/* ── Servis Terakhir ── */}
-        <Text style={styles.sectionTitle}>Servis Terakhir</Text>
-        <View style={styles.servisGrid}>
-          {DUMMY_SERVIS_TERAKHIR.map((item) => (
-            <View key={item.id} style={styles.servisCard}>
-              <Text style={styles.servisKendaraan} numberOfLines={1}>{item.kendaraan}</Text>
-              <Text style={styles.servisTanggal}>{item.tanggal}</Text>
-              <Text style={styles.servisBiaya}>{item.biaya}</Text>
-              <View style={styles.servisStatusRow}>
-                <Ionicons name="checkmark-circle" size={13} color="#43A047" />
-                <Text style={styles.servisStatusText}>{item.status}</Text>
-              </View>
+        {isLogin && servisTerakhir.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Servis Terakhir</Text>
+            <View style={styles.servisGrid}>
+              {servisTerakhir.map((item) => (
+                <TouchableOpacity
+                  key={item.wo_id}
+                  style={styles.servisCard}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/(beranda)/services/${item.wo_id}`)}
+                >
+                  <Text style={styles.servisKendaraan} numberOfLines={1}>
+                    {item.kendaraan
+                      ? `${item.kendaraan.merek} ${item.kendaraan.model}`
+                      : "Kendaraan"}
+                  </Text>
+                  <Text style={styles.servisTanggal}>{formatTanggal(item.created_at)}</Text>
+                  <Text style={styles.servisBiaya}>
+                    {formatRupiah(
+                      item.biaya_jasa + (item.items ?? []).reduce((s, i) => s + i.subtotal, 0)
+                    )}
+                  </Text>
+                  <View style={styles.servisStatusRow}>
+                    <Ionicons name="checkmark-circle" size={13} color="#43A047" />
+                    <Text style={styles.servisStatusText}>
+                      {WO_STATUS_LABEL[item.status] ?? item.status}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        )}
 
         {/* ── Jadwal & Antrian Banner ── */}
         <TouchableOpacity
@@ -199,17 +406,111 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: 32, fontWeight: "800" },
   statLabel: { fontSize: 12, color: "#666" },
 
-  servisAktifCard: { borderLeftWidth: 4, borderLeftColor: "#FF6D00" },
-  servisAktifHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  servisAktifWO: { fontSize: 12, color: "#888", fontWeight: "500" },
-  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFF3E0", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF6D00" },
-  statusText: { fontSize: 11, fontWeight: "600", color: "#E65100" },
-  servisAktifKendaraan: { fontSize: 16, fontWeight: "700", color: "#1A1A2E", marginBottom: 2 },
-  servisAktifPlat: { fontSize: 13, color: "#888", marginBottom: 12 },
-  detailBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#1565C0", borderRadius: 8, paddingVertical: 8, gap: 4 },
-  detailBtnText: { color: "#1565C0", fontWeight: "600", fontSize: 13 },
+  // ── Login prompt
+  loginPromptCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 12,
+    alignItems: "center",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  loginPromptTitle: { fontSize: 17, fontWeight: "800", color: "#1A1A2E" },
+  loginPromptSub: { fontSize: 13, color: "#888", textAlign: "center", lineHeight: 20 },
+  loginBtn: {
+    marginTop: 8,
+    backgroundColor: "#1565C0",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  loginBtnText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
+  registerText: { fontSize: 12, color: "#888", marginTop: 4 },
+  registerLink: { color: "#1565C0", fontWeight: "600" },
 
+  // ── Section header
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 10 },
+  sectionLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  sectionLinkText: { fontSize: 12, color: "#1565C0", fontWeight: "600" },
+
+  // ── Kendaraan horizontal list
+  kendaraanScroll: { paddingBottom: 12, gap: 10 },
+  kendaraanCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 14,
+    width: 180,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  kendaraanIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#E3F2FD",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kendaraanInfo: { flex: 1 },
+  kendaraanNama: { fontSize: 13, fontWeight: "700", color: "#1A1A2E" },
+  kendaraanPlat: { fontSize: 11, color: "#888", marginTop: 2 },
+  kendaraanTahun: { fontSize: 11, color: "#BDBDBD" },
+
+  tambahKendaraanCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#90CAF9",
+  },
+  tambahKendaraanText: { color: "#1565C0", fontWeight: "600", fontSize: 14 },
+
+  // ── Servis Aktif / Booking Aktif
+  aktifCard: { borderLeftWidth: 4, borderLeftColor: "#FF6D00" },
+  bookingAktifCard: { borderLeftWidth: 4, borderLeftColor: "#F9A825" },
+  aktifHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  aktifWONo: { fontSize: 12, color: "#888", fontWeight: "500" },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFF3E0", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontWeight: "600", color: "#E65100" },
+  aktifKendaraan: { fontSize: 16, fontWeight: "700", color: "#1A1A2E", marginBottom: 2 },
+  aktifPlat: { fontSize: 13, color: "#888", marginBottom: 10 },
+  aktifFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  aktifMekanik: { fontSize: 12, color: "#999", flex: 1, marginRight: 8 },
+  detailChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#1565C0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 2,
+  },
+  detailChipText: { color: "#1565C0", fontWeight: "600", fontSize: 12 },
+
+  // ── Booking button
   bookingBtn: {
     backgroundColor: "#1565C0",
     borderRadius: 12,
@@ -226,8 +527,7 @@ const styles = StyleSheet.create({
   },
   bookingBtnText: { color: "#FFF", fontWeight: "700", fontSize: 15 },
 
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 10 },
-
+  // ── Servis Terakhir
   servisGrid: { flexDirection: "row", gap: 10, marginBottom: 14 },
   servisCard: {
     flex: 1,
@@ -246,6 +546,7 @@ const styles = StyleSheet.create({
   servisStatusRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   servisStatusText: { fontSize: 11, color: "#43A047", fontWeight: "600" },
 
+  // ── Jadwal banner
   jadwalBanner: {
     backgroundColor: "#E3F2FD",
     borderRadius: 12,

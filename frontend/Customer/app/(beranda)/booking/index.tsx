@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,12 +14,26 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCreateBooking } from "../../../src/hooks/booking.hooks";
 import { useGetAllKendaraan } from "../../../src/hooks/kendaraan.hooks";
+import { useAuth } from "../../../src/contexts/auth.context";
 import { Kendaraan } from "../../../src/@types/kendaraan.types";
+import { useToast } from "../../../src/contexts/toast.context";
 
 const STEP_LABELS = ["Kendaraan", "Jadwal", "Keluhan", "Konfirmasi"];
 const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 const DAYS = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
-const JAM_OPTIONS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+const ALL_JAM = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+
+function getAvailableJam(selectedDate: Date | null): string[] {
+  if (!selectedDate) return ALL_JAM;
+  const now = new Date();
+  const isToday =
+    selectedDate.getFullYear() === now.getFullYear() &&
+    selectedDate.getMonth() === now.getMonth() &&
+    selectedDate.getDate() === now.getDate();
+  if (!isToday) return ALL_JAM;
+  const currentHour = now.getHours();
+  return ALL_JAM.filter((t) => parseInt(t.split(":")[0], 10) > currentHour);
+}
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -31,11 +44,11 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 export default function BookingServis() {
   const today = new Date();
+  const { user } = useAuth();
 
   // ── Data kendaraan dari API ───────────────────────────────────────────────
-  const { kendaraanList, isLoading: isLoadingKendaraan } = useGetAllKendaraan();
-  // kendaraanList dari hook masih berupa ApiResponse, extract .data-nya
-  const kendaraans: Kendaraan[] = (kendaraanList as any)?.data ?? [];
+  const { kendaraanList: kendaraans, isLoading: isLoadingKendaraan } = useGetAllKendaraan(user?.user_id ?? '');
+  const { showSuccess } = useToast();
 
   const [selectedKendaraanId, setSelectedKendaraanId] = useState<string | null>(null);
   const [showKendaraanPicker, setShowKendaraanPicker] = useState(false);
@@ -51,9 +64,9 @@ export default function BookingServis() {
 
   const { createBookingMutation } = useCreateBooking({
     successAction: () => {
-      Alert.alert("Berhasil", "Booking servis berhasil dibuat! Tunggu konfirmasi dari bengkel.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      showSuccess("Booking berhasil dibuat! Tunggu konfirmasi bengkel.", () =>
+        router.replace("/(beranda)/services")
+      );
     },
   });
 
@@ -61,6 +74,8 @@ export default function BookingServis() {
   const selectedKendaraanLabel = selectedKendaraan
     ? `${selectedKendaraan.merek} ${selectedKendaraan.model} · ${selectedKendaraan.nomor_polisi}`
     : null;
+
+  const jamOptions = getAvailableJam(selectedDate);
 
   const activeStep = !selectedKendaraanId ? 0 : !tanggal ? 1 : keluhan.trim().length === 0 ? 2 : 3;
   const canSubmit = !!selectedKendaraanId && !!tanggal && keluhan.trim().length > 0;
@@ -72,6 +87,11 @@ export default function BookingServis() {
     setSelectedDate(d);
     setTanggal(`${String(day).padStart(2, "0")} ${MONTHS[calMonth]} ${calYear}`);
     setShowCalendar(false);
+    // Reset jam if it's no longer available for the selected date
+    const available = getAvailableJam(d);
+    if (available.length > 0 && !available.includes(jam)) {
+      setJam(available[0]);
+    }
   };
 
   const buildETARFC3339 = (): string => {
@@ -313,7 +333,12 @@ export default function BookingServis() {
           <TouchableOpacity activeOpacity={1} style={styles.timeModal}>
             <Text style={styles.timeModalTitle}>Pilih Jam</Text>
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
-              {JAM_OPTIONS.map((j) => (
+              {jamOptions.length === 0 ? (
+                <Text style={{ textAlign: "center", color: "#BDBDBD", padding: 16 }}>
+                  Tidak ada jam tersedia untuk hari ini
+                </Text>
+              ) : null}
+              {jamOptions.map((j) => (
                 <TouchableOpacity
                   key={j}
                   style={[styles.timeOption, jam === j && styles.timeOptionActive]}
