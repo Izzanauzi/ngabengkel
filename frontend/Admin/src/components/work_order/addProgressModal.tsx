@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Modal, KeyboardAvoidingView, View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform, StyleSheet } from "react-native";
+import { Modal, KeyboardAvoidingView, View, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform, StyleSheet } from "react-native";
 import { useUploadProgressMutation } from "../../hooks/work_order.hooks";
+import { useToast } from "../../contexts/toast.context";
 
 interface AddProgressModalProps {
   visible: boolean;
@@ -13,21 +14,31 @@ export function AddProgressModal({ visible, woId, onClose }: AddProgressModalPro
   const [tipe, setTipe] = useState("catatan");
   const [fotoUrl, setFotoUrl] = useState("");
   const [biayaTambahan, setBiayaTambahan] = useState("");
+  const [fieldError, setFieldError] = useState("");
+
+  const { showSuccess } = useToast();
 
   const { uploadProgressMutation } = useUploadProgressMutation({
     successAction: () => {
+      showSuccess("Progress berhasil ditambahkan");
       setDeskripsi("");
       setFotoUrl("");
       setBiayaTambahan("");
+      setFieldError("");
       onClose();
     },
   });
 
+  React.useEffect(() => {
+    if (!visible) setFieldError("");
+  }, [visible]);
+
   const handleSubmit = () => {
     if (!deskripsi.trim()) {
-      Alert.alert("Validasi", "Deskripsi wajib diisi.");
+      setFieldError("Deskripsi wajib diisi.");
       return;
     }
+    setFieldError("");
     uploadProgressMutation.mutate({
       woId,
       payload: {
@@ -37,7 +48,7 @@ export function AddProgressModal({ visible, woId, onClose }: AddProgressModalPro
         est_biaya_tambahan: biayaTambahan ? parseInt(biayaTambahan, 10) : undefined,
       },
     }, {
-      onError: () => Alert.alert("Gagal", "Gagal menambahkan progress."),
+      onError: () => setFieldError("Gagal menambahkan progress. Coba lagi."),
     });
   };
 
@@ -53,13 +64,16 @@ export function AddProgressModal({ visible, woId, onClose }: AddProgressModalPro
             <TextInput
               style={[styles.input, styles.multiline]}
               value={deskripsi}
-              onChangeText={setDeskripsi}
+              onChangeText={(t) => { setDeskripsi(t); if (fieldError) setFieldError(""); }}
               placeholder="Tulis catatan progress pengerjaan..."
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={3}
               textAlignVertical="top"
             />
+            {!!fieldError && (
+              <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>{fieldError}</Text>
+            )}
 
             <Text style={styles.fieldLabel}>Tipe</Text>
             <View style={styles.tipeRow}>

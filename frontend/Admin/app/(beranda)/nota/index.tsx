@@ -1,20 +1,60 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  SafeAreaView
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  useGetWorkOrderById,
+  useConfirmPaymentMutation,
+} from '../../../src/hooks/work_order.hooks';
+
+function formatRupiah(n: number): string {
+  return `Rp ${n.toLocaleString('id-ID')}`;
+}
+
+function formatTanggal(iso: string): string {
+  return new Date(iso).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
 
 export default function NotaTagihanScreen() {
-  // State untuk menyimpan pilihan metode pembayaran
-  const [paymentMethod, setPaymentMethod] = useState('Tunai');
+  const { wo_id } = useLocalSearchParams<{ wo_id: string }>();
+  const router = useRouter();
+  const [paymentMethod, setPaymentMethod] = useState('tunai');
+  const [payError, setPayError] = useState<string | null>(null);
 
-  // Komponen Reusable untuk Radio Button
-  const RadioButton = ({ label, selected, onPress }: { label: string, selected: boolean, onPress: () => void }) => (
+  const { workOrder, isLoading } = useGetWorkOrderById(wo_id);
+
+  const { confirmPaymentMutation } = useConfirmPaymentMutation({
+    successAction: () => router.back(),
+    onError: (msg) => setPayError(msg),
+  });
+
+  const totalMaterial =
+    workOrder?.items?.reduce((sum, item) => sum + item.subtotal, 0) ?? 0;
+  const totalBiaya = (workOrder?.biaya_jasa ?? 0) + totalMaterial;
+
+  const RadioButton = ({
+    label,
+    value,
+    selected,
+    onPress,
+  }: {
+    label: string;
+    value: string;
+    selected: boolean;
+    onPress: () => void;
+  }) => (
     <TouchableOpacity style={styles.radioContainer} onPress={onPress} activeOpacity={0.8}>
       <View style={[styles.outerCircle, selected && styles.selectedOuterCircle]}>
         {selected && <View style={styles.innerCircle} />}
@@ -23,114 +63,167 @@ export default function NotaTagihanScreen() {
     </TouchableOpacity>
   );
 
+  if (!wo_id) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerBox}>
+          <Text style={styles.emptyText}>Work Order tidak ditemukan</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color="#1a73e8" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!workOrder) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerBox}>
+          <Text style={styles.emptyText}>Data WO tidak ditemukan</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isLunas = workOrder.status === 'lunas';
+  const customerName = workOrder.user?.nama ?? '-';
+  const vehicleLabel = workOrder.kendaraan
+    ? `${workOrder.kendaraan.merek} ${workOrder.kendaraan.model} · ${workOrder.kendaraan.nomor_polisi}`
+    : '-';
+  const mekanikName = workOrder.mekanik?.nama ?? '-';
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nota Tagihan</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        
-        {/* KARTU 1: INFO WORK ORDER */}
+        {/* KARTU INFO WORK ORDER */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View>
-              <Text style={styles.woNumber}>WO-2025-0042</Text>
-              <Text style={styles.notaNumber}>Nota #NTA-2025-0038</Text>
+              <Text style={styles.woNumber}>{workOrder.nomor_wo ?? workOrder.wo_id}</Text>
             </View>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>Belum Lunas</Text>
+            <View style={[styles.statusBadge, isLunas && styles.statusBadgeLunas]}>
+              <Text style={[styles.statusBadgeText, isLunas && styles.statusBadgeTextLunas]}>
+                {isLunas ? 'Lunas' : 'Belum Lunas'}
+              </Text>
             </View>
           </View>
 
           <Text style={styles.infoLabel}>Customer</Text>
-          <Text style={styles.infoValue}>Budi Santoso</Text>
+          <Text style={styles.infoValue}>{customerName}</Text>
 
           <Text style={styles.infoLabel}>Kendaraan</Text>
-          <Text style={styles.infoValue}>Honda Vario 150 · D 1234 ABC</Text>
+          <Text style={styles.infoValue}>{vehicleLabel}</Text>
 
           <Text style={styles.infoLabel}>Mekanik</Text>
-          <Text style={styles.infoValue}>Agus Riyadi</Text>
+          <Text style={styles.infoValue}>{mekanikName}</Text>
 
-          <Text style={styles.infoLabel}>Tanggal Selesai</Text>
-          <Text style={styles.infoValue}>10 Jun 2024, 15:30</Text>
+          {workOrder.tanggal_selesai && (
+            <>
+              <Text style={styles.infoLabel}>Tanggal Selesai</Text>
+              <Text style={styles.infoValue}>{formatTanggal(workOrder.tanggal_selesai)}</Text>
+            </>
+          )}
         </View>
 
-        {/* KARTU 2: RINCIAN BIAYA */}
+        {/* RINCIAN BIAYA */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>RINCIAN BIAYA</Text>
-          
-          <View style={styles.costItemRow}>
-            <Text style={styles.costItemName}>Jasa Servis</Text>
-            <Text style={styles.costItemPrice}>Rp 150.000</Text>
-          </View>
 
-          <View style={styles.costItemRow}>
-            <Text style={styles.costItemName}>Oli Mesin 10W-40 × 1</Text>
-            <Text style={styles.costItemPrice}>Rp 65.000</Text>
-          </View>
+          {(workOrder.biaya_jasa ?? 0) > 0 && (
+            <View style={styles.costItemRow}>
+              <Text style={styles.costItemName}>Biaya Jasa</Text>
+              <Text style={styles.costItemPrice}>{formatRupiah(workOrder.biaya_jasa!)}</Text>
+            </View>
+          )}
 
-          <View style={styles.costItemRow}>
-            <Text style={styles.costItemName}>Filter Oli × 1</Text>
-            <Text style={styles.costItemPrice}>Rp 35.000</Text>
-          </View>
+          {(workOrder.items ?? []).map((item, idx) => (
+            <View key={item.item_id ?? idx} style={styles.costItemRow}>
+              <Text style={styles.costItemName}>
+                {item.nama_barang} × {item.jumlah}
+              </Text>
+              <Text style={styles.costItemPrice}>{formatRupiah(item.subtotal)}</Text>
+            </View>
+          ))}
 
-          <View style={styles.costItemRow}>
-            <Text style={styles.costItemName}>Busi NGK × 2</Text>
-            <Text style={styles.costItemPrice}>Rp 56.000</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.subtotalRow}>
-            <Text style={styles.subtotalLabel}>Subtotal</Text>
-            <Text style={styles.subtotalValue}>Rp 306.000</Text>
-          </View>
-
-          <View style={styles.discountRow}>
-            <Text style={styles.discountLabel}>Diskon</Text>
-            <Text style={styles.discountValue}>- Rp 6.000</Text>
-          </View>
+          {(workOrder.items ?? []).length === 0 && (workOrder.biaya_jasa ?? 0) === 0 && (
+            <Text style={styles.emptyText}>Belum ada rincian biaya</Text>
+          )}
 
           <View style={styles.thickDivider} />
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>Rp 300.000</Text>
+            <Text style={styles.totalValue}>{formatRupiah(totalBiaya)}</Text>
           </View>
         </View>
 
-        {/* KARTU 3: METODE PEMBAYARAN */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>METODE PEMBAYARAN</Text>
-          
-          <RadioButton 
-            label="Tunai" 
-            selected={paymentMethod === 'Tunai'} 
-            onPress={() => setPaymentMethod('Tunai')} 
-          />
-          <RadioButton 
-            label="Transfer Bank" 
-            selected={paymentMethod === 'Transfer Bank'} 
-            onPress={() => setPaymentMethod('Transfer Bank')} 
-          />
-          <RadioButton 
-            label="QRIS" 
-            selected={paymentMethod === 'QRIS'} 
-            onPress={() => setPaymentMethod('QRIS')} 
-          />
+        {/* METODE PEMBAYARAN — hanya jika belum lunas */}
+        {!isLunas && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>METODE PEMBAYARAN</Text>
 
-          {/* TOMBOL KONFIRMASI PEMBAYARAN */}
-          <TouchableOpacity style={styles.btnConfirm}>
-            <Text style={styles.btnConfirmText}>Konfirmasi Pembayaran</Text>
-          </TouchableOpacity>
-        </View>
+            <RadioButton
+              label="Tunai"
+              value="tunai"
+              selected={paymentMethod === 'tunai'}
+              onPress={() => setPaymentMethod('tunai')}
+            />
+            <RadioButton
+              label="Transfer Bank"
+              value="transfer"
+              selected={paymentMethod === 'transfer'}
+              onPress={() => setPaymentMethod('transfer')}
+            />
+            <RadioButton
+              label="QRIS"
+              value="qris"
+              selected={paymentMethod === 'qris'}
+              onPress={() => setPaymentMethod('qris')}
+            />
 
-        {/* Spacing bawah untuk scroll yang nyaman */}
+            {!!payError && (
+              <Text style={{ color: '#DC2626', fontSize: 13, marginBottom: 10, textAlign: 'center' }}>
+                {payError}
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.btnConfirm,
+                confirmPaymentMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={() => {
+                setPayError(null);
+                confirmPaymentMutation.mutate({
+                  woId: workOrder.wo_id,
+                  metode_pembayaran: paymentMethod,
+                  total_biaya: totalBiaya,
+                });
+              }}
+              disabled={confirmPaymentMutation.isPending}
+            >
+              <Text style={styles.btnConfirmText}>
+                {confirmPaymentMutation.isPending ? 'Memproses...' : 'Konfirmasi Pembayaran'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
@@ -138,29 +231,19 @@ export default function NotaTagihanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-  },
+  container: { flex: 1, backgroundColor: '#f5f7fa' },
+  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: {
-    backgroundColor: '#1a73e8', // Biru primary sesuai request
+    backgroundColor: '#1a73e8',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 40, // Sesuaikan dengan safe area device
+    paddingTop: 40,
     paddingBottom: 15,
     paddingHorizontal: 15,
   },
-  backButton: {
-    marginRight: 15,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  content: {
-    flex: 1,
-  },
+  backButton: { marginRight: 15 },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  content: { flex: 1 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -173,47 +256,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  
-  // Gaya Kartu Info
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  woNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 4,
-  },
-  notaNumber: {
-    fontSize: 13,
-    color: '#888',
-  },
+  woNumber: { fontSize: 16, fontWeight: 'bold', color: '#222', marginBottom: 4 },
   statusBadge: {
-    backgroundColor: '#fef5e7', // Background kuning pucat
+    backgroundColor: '#fef5e7',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
-  statusBadgeText: {
-    color: '#d98a2c', // Teks emas keorenan
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-    marginTop: 12,
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#222',
-  },
-
-  // Gaya Kartu Rincian Biaya
+  statusBadgeLunas: { backgroundColor: '#e6f6ec' },
+  statusBadgeText: { color: '#d98a2c', fontSize: 12, fontWeight: 'bold' },
+  statusBadgeTextLunas: { color: '#1ea446' },
+  infoLabel: { fontSize: 12, color: '#888', marginBottom: 4, marginTop: 12 },
+  infoValue: { fontSize: 15, color: '#222' },
   sectionTitle: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -221,78 +281,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 16,
   },
-  costItemRow: {
-    marginBottom: 14,
-  },
-  costItemName: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 4,
-  },
-  costItemPrice: {
-    fontSize: 15,
-    color: '#222',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 12,
-  },
-  thickDivider: {
-    height: 1.5,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 12,
-  },
-  subtotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  subtotalLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  subtotalValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#222',
-  },
-  discountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  discountLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  discountValue: {
-    fontSize: 15,
-    color: '#222',
-  },
+  costItemRow: { marginBottom: 14 },
+  costItemName: { fontSize: 13, color: '#666', marginBottom: 4 },
+  costItemPrice: { fontSize: 15, color: '#222' },
+  thickDivider: { height: 1.5, backgroundColor: '#e0e0e0', marginVertical: 12 },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
   },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#222',
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a73e8', // Biru primary
-  },
-
-  // Gaya Metode Pembayaran
-  radioContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
+  totalLabel: { fontSize: 16, fontWeight: 'bold', color: '#222' },
+  totalValue: { fontSize: 18, fontWeight: 'bold', color: '#1a73e8' },
+  radioContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   outerCircle: {
     height: 20,
     width: 20,
@@ -303,21 +304,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  selectedOuterCircle: {
-    borderColor: '#1a73e8',
-  },
-  innerCircle: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: '#1a73e8',
-  },
-  radioLabel: {
-    fontSize: 15,
-    color: '#333',
-  },
-  
-  // Tombol Konfirmasi
+  selectedOuterCircle: { borderColor: '#1a73e8' },
+  innerCircle: { height: 10, width: 10, borderRadius: 5, backgroundColor: '#1a73e8' },
+  radioLabel: { fontSize: 15, color: '#333' },
   btnConfirm: {
     backgroundColor: '#1a73e8',
     paddingVertical: 14,
@@ -325,9 +314,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  btnConfirmText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
+  btnConfirmText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+  emptyText: { color: '#aaa', fontSize: 14, textAlign: 'center', paddingVertical: 8 },
 });

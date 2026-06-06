@@ -28,35 +28,38 @@ export function useCustomerHistory(searchQuery: string = "") {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const fetchData = useCallback(
-    async (isRefresh = false) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        if (isRefresh) setIsRefreshing(true);
+        if (refreshTrigger > 0) setIsRefreshing(true);
         else setIsLoading(true);
         setError(null);
 
-        // 1. Ambil daftar customer, dengan optional search
         const query = searchQuery.trim();
         const customerList = await baseFetch<Customer[]>({
-          url: "/customers",
+          url: "/admin/customers",
           method: "GET",
           params: query ? { q: query } : undefined,
           options: { showError: false },
         });
 
         if (!customerList) {
-          setCustomers([]);
-          setStats({ totalCustomer: 0, totalWO: 0, totalTransaksi: 0 });
+          if (!cancelled) {
+            setCustomers([]);
+            setStats({ totalCustomer: 0, totalWO: 0, totalTransaksi: 0 });
+          }
           return;
         }
 
-        // 2. Untuk setiap customer, ambil histori WO-nya secara paralel
         const customerWithStats: CustomerWithStats[] = await Promise.all(
           customerList.map(async (c) => {
             try {
               const history = await baseFetch<WorkOrder[]>({
-                url: `/customers/${c.user_id}/history`,
+                url: `/admin/reports/customers/${c.user_id}/history`,
                 method: "GET",
                 options: { showError: false },
               });
@@ -81,33 +84,36 @@ export function useCustomerHistory(searchQuery: string = "") {
           })
         );
 
-        // Urutkan: customer dengan WO terbanyak di atas
         customerWithStats.sort((a, b) => b.total_wo - a.total_wo);
-        setCustomers(customerWithStats);
 
-        setStats({
-          totalCustomer: customerWithStats.length,
-          totalWO: customerWithStats.reduce((sum, c) => sum + c.total_wo, 0),
-          totalTransaksi: customerWithStats.reduce(
-            (sum, c) => sum + c.total_biaya,
-            0
-          ),
-        });
+        if (!cancelled) {
+          setCustomers(customerWithStats);
+          setStats({
+            totalCustomer: customerWithStats.length,
+            totalWO: customerWithStats.reduce((sum, c) => sum + c.total_wo, 0),
+            totalTransaksi: customerWithStats.reduce(
+              (sum, c) => sum + c.total_biaya,
+              0
+            ),
+          });
+        }
       } catch (err: any) {
-        setError(err?.message ?? "Gagal memuat data customer");
+        if (!cancelled) setError(err?.message ?? "Gagal memuat data customer");
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
-    },
-    [searchQuery]
-  );
+    };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery, refreshTrigger]);
 
-  const refresh = useCallback(() => fetchData(true), [fetchData]);
+  const refresh = useCallback(() => setRefreshTrigger((t) => t + 1), []);
 
   return { customers, stats, isLoading, isRefreshing, refresh, error };
 }
@@ -126,29 +132,30 @@ export function useCustomerHistoryDetail(userId: string | undefined) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const fetchData = useCallback(
-    async (isRefresh = false) => {
-      // Jangan fetch kalau userId belum ada / undefined
-      if (!userId || userId === "undefined") {
-        setIsLoading(false);
-        return;
-      }
+  useEffect(() => {
+    if (!userId || userId === "undefined") {
+      setIsLoading(false);
+      return;
+    }
 
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        if (isRefresh) setIsRefreshing(true);
+        if (refreshTrigger > 0) setIsRefreshing(true);
         else setIsLoading(true);
         setError(null);
 
-        // Fetch customer list & histori WO paralel
         const [customerList, history] = await Promise.all([
           baseFetch<Customer[]>({
-            url: "/customers",
+            url: "/admin/customers",
             method: "GET",
             options: { showError: false },
           }),
           baseFetch<WorkOrder[]>({
-            url: `/customers/${userId}/history`,
+            url: `/admin/reports/customers/${userId}/history`,
             method: "GET",
             options: { showError: false },
           }),
@@ -156,35 +163,40 @@ export function useCustomerHistoryDetail(userId: string | undefined) {
 
         const found =
           (customerList ?? []).find((c) => c.user_id === userId) ?? null;
-        setCustomer(found);
 
         const woList = history ?? [];
         const sorted = [...woList].sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
-        setWorkOrders(sorted);
 
         const totalBiaya = sorted
           .filter((wo) => wo.status === "lunas")
           .reduce((sum, wo) => sum + calcTotalBiaya(wo), 0);
 
-        setSummary({ totalWO: sorted.length, totalBiaya });
+        if (!cancelled) {
+          setCustomer(found);
+          setWorkOrders(sorted);
+          setSummary({ totalWO: sorted.length, totalBiaya });
+        }
       } catch (err: any) {
-        setError(err?.message ?? "Gagal memuat histori customer");
+        if (!cancelled)
+          setError(err?.message ?? "Gagal memuat histori customer");
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
-    },
-    [userId]
-  );
+    };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, refreshTrigger]);
 
-  const refresh = useCallback(() => fetchData(true), [fetchData]);
+  const refresh = useCallback(() => setRefreshTrigger((t) => t + 1), []);
 
   return {
     customer,

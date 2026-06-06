@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +17,7 @@ export default function RejectModal({
   visible, onClose, onSubmit, isLoading,
 }: RejectModalProps) {
   const [alasan, setAlasan] = useState("");
+  const [alasanError, setAlasanError] = useState("");
 
   const handleClose = () => {
     setAlasan("");
@@ -25,15 +26,15 @@ export default function RejectModal({
 
   const handleSubmit = () => {
     if (!alasan.trim()) {
-      Alert.alert("Error", "Alasan penolakan wajib diisi");
+      setAlasanError("Alasan penolakan wajib diisi");
       return;
     }
+    setAlasanError("");
     onSubmit(alasan.trim());
   };
 
-  // Reset alasan saat modal ditutup dari luar (setelah sukses)
   React.useEffect(() => {
-    if (!visible) setAlasan("");
+    if (!visible) { setAlasan(""); setAlasanError(""); }
   }, [visible]);
 
   return (
@@ -80,11 +81,14 @@ export default function RejectModal({
               placeholder="Contoh: Slot penuh, jadwal tidak tersedia..."
               placeholderTextColor="#9CA3AF"
               value={alasan}
-              onChangeText={setAlasan}
+              onChangeText={(t) => { setAlasan(t); if (alasanError) setAlasanError(""); }}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
             />
+            {!!alasanError && (
+              <Text style={{ color: '#EF4444', fontSize: 12, marginBottom: 8, marginTop: -8 }}>{alasanError}</Text>
+            )}
 
             <View style={styles.actions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>

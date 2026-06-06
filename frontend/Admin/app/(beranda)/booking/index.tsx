@@ -6,9 +6,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import BookingCard from "../../../src/components/booking/bookingCard";
 import BookingSummary from "../../../src/components/booking/bookingSummary";
 import BookingTabs, {
@@ -21,8 +21,11 @@ import {
   useRejectBookingMutation,
 } from "../../../src/hooks/booking.hooks";
 import type { Booking } from "../../../src/@types/booking.types";
+import { useToast } from "../../../src/contexts/toast.context";
 
 export default function AdminBookingPage() {
+  const router = useRouter();
+  const { showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("semua");
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,13 +33,13 @@ export default function AdminBookingPage() {
   const { bookings, isLoading, refetch } = useGetAllBookings();
 
   const { acceptMutation } = useAcceptBookingMutation({
-    successAction: () => Alert.alert("Berhasil", "Booking berhasil disetujui"),
+    successAction: () => showSuccess("Booking berhasil disetujui"),
   });
 
   const { rejectMutation } = useRejectBookingMutation({
     successAction: () => {
       setRejectTarget(null);
-      Alert.alert("Berhasil", "Booking berhasil ditolak");
+      showSuccess("Booking berhasil ditolak");
     },
   });
 
@@ -81,11 +84,22 @@ export default function AdminBookingPage() {
         booking={item}
         onAccept={(id) => acceptMutation.mutate(id)}
         onReject={(id) => setRejectTarget(id)}
+        onCreateWO={(booking) =>
+          router.push({
+            pathname: "/(beranda)/work_order/create_work_order" as any,
+            params: {
+              booking_id: booking.booking_id,
+              user_id: booking.user_id,
+              kendaraan_id: booking.kendaraan_id,
+              keluhan: booking.keluhan_awal ?? "",
+            },
+          })
+        }
         isAccepting={acceptMutation.isPending}
         isRejecting={rejectMutation.isPending}
       />
     ),
-    [acceptMutation, rejectMutation]
+    [acceptMutation, rejectMutation, router]
   );
 
   return (

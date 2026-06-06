@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useToast } from "../../../src/contexts/toast.context";
 import {
   View,
   Text,
@@ -6,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Modal,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,12 +66,20 @@ export default function WorkOrderDetailScreen() {
 
   const [showProgress, setShowProgress] = useState(false);
   const [showNota, setShowNota] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ visible: false, title: '', message: '', onConfirm: () => {} });
+
+  const { showSuccess } = useToast();
 
   const { startWorkOrderMutation } = useStartWorkOrderMutation({
-    successAction: () => {},
+    successAction: () => showSuccess("WO berhasil dimulai"),
   });
   const { finishWorkOrderMutation } = useFinishWorkOrderMutation({
-    successAction: () => {},
+    successAction: () => showSuccess("WO berhasil diselesaikan"),
   });
 
   const totalMaterial = (workOrder?.progress ?? []).reduce(
@@ -79,30 +88,27 @@ export default function WorkOrderDetailScreen() {
   );
 
   const handleStart = () => {
-    Alert.alert("Mulai WO", "Yakin ingin memulai work order ini?", [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Mulai",
-        onPress: () =>
-          startWorkOrderMutation.mutate(id!, {
-            onError: () => Alert.alert("Gagal", "Gagal memulai work order."),
-          }),
+    setConfirmModal({
+      visible: true,
+      title: 'Mulai WO',
+      message: 'Yakin ingin memulai work order ini?',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        startWorkOrderMutation.mutate(id!);
       },
-    ]);
+    });
   };
 
   const handleFinish = () => {
-    Alert.alert("Selesaikan WO", "Tandai work order ini sebagai selesai?", [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Selesai",
-        onPress: () =>
-          finishWorkOrderMutation.mutate(id!, {
-            onError: () =>
-              Alert.alert("Gagal", "Gagal menyelesaikan work order."),
-          }),
+    setConfirmModal({
+      visible: true,
+      title: 'Selesaikan WO',
+      message: 'Tandai work order ini sebagai selesai?',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        finishWorkOrderMutation.mutate(id!);
       },
-    ]);
+    });
   };
 
   if (isLoading) {
@@ -344,9 +350,35 @@ export default function WorkOrderDetailScreen() {
       <NotaTagihanModal
         visible={showNota}
         onClose={() => setShowNota(false)}
-        workOrder={workOrder}
-        totalMaterial={totalMaterial}
+        woId={id!}
       />
+
+      <Modal visible={confirmModal.visible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', marginBottom: 8 }}>
+              {confirmModal.title}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+              {confirmModal.message}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
+                onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+              >
+                <Text style={{ color: '#6B7280', fontWeight: '600' }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#2563EB', alignItems: 'center' }}
+                onPress={confirmModal.onConfirm}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Ya, Lanjutkan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

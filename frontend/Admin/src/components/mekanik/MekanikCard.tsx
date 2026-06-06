@@ -2,17 +2,25 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+const STATUS_LABEL: Record<string, string> = {
+  tersedia: 'Tersedia',
+  sibuk: 'Tidak Tersedia',
+};
+
 export default function MekanikCard({ item, onEdit, onDelete }: any) {
+  const isTersedia = item.status === 'tersedia';
+  const statusLabel = STATUS_LABEL[item.status] ?? item.status;
+
   return (
     <View style={styles.card}>
-      {item.status === 'Tersedia' && <View style={styles.indicatorTersedia} />}
+      {isTersedia && <View style={styles.indicatorTersedia} />}
       <View style={styles.avatar}><Text style={styles.avatarText}>{item.initials}</Text></View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.statusBadge}>
-            <View style={[styles.statusDot, { backgroundColor: item.status === 'Tersedia' ? '#4caf50' : '#9e9e9e' }]} />
-            <Text style={[styles.statusText, { color: item.status === 'Tersedia' ? '#4caf50' : '#9e9e9e' }]}>{item.status}</Text>
+            <View style={[styles.statusDot, { backgroundColor: isTersedia ? '#4caf50' : '#9e9e9e' }]} />
+            <Text style={[styles.statusText, { color: isTersedia ? '#4caf50' : '#9e9e9e' }]}>{statusLabel}</Text>
           </View>
         </View>
         <View style={styles.detailRow}>

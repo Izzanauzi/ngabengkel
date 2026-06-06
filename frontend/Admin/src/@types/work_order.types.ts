@@ -28,10 +28,20 @@ export interface WorkOrder {
     model: string;
     nomor_polisi: string;
   } | null;
-  // Untuk admin GetAll — user info dari join
   user?: {
     nama: string;
   } | null;
+  mekanik?: {
+    nama: string;
+  } | null;
+}
+
+export interface WorkOrderItem {
+  item_id?: string;
+  nama_barang: string;
+  jumlah: number;
+  harga_satuan: number;
+  subtotal: number;
 }
 
 export interface Progress {
@@ -46,6 +56,15 @@ export interface Progress {
 
 export interface WorkOrderDetail extends WorkOrder {
   progress: Progress[];
+  items?: WorkOrderItem[];
+  tanggal_selesai?: string | null;
+}
+
+export interface InvoiceData {
+  biaya_jasa: number;
+  total_material: number;
+  total_biaya: number;
+  items: WorkOrderItem[];
 }
 
 export interface WorkOrderRequest {

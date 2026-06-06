@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useGetAllKendaraan } from '../../hooks/work_order.hooks';
 
 export default function CustomerDetail({ customer, onBack }: any) {
+  const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan(customer.user_id);
+
   return (
     <View style={styles.container}>
       <View style={styles.detailHeaderArea}>
@@ -20,20 +23,18 @@ export default function CustomerDetail({ customer, onBack }: any) {
           </View>
           <View>
             <Text style={styles.detailName}>{customer.name}</Text>
-            <Text style={styles.detailSubtitle}>Customer sejak Jan 2024</Text>
           </View>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgeRow}>
           <View style={styles.detailHeaderBadge}>
             <Ionicons name="car-outline" size={14} color="#fff" />
-            <Text style={styles.detailBadgeText}>{customer.vehicles} Kendaraan</Text>
+            <Text style={styles.detailBadgeText}>
+              {loadingKendaraan ? '...' : kendaraanList.length} Kendaraan
+            </Text>
           </View>
           <View style={styles.detailHeaderBadge}>
             <Text style={styles.detailBadgeText}># {customer.wo} Riwayat WO</Text>
-          </View>
-          <View style={styles.detailHeaderBadge}>
-            <Text style={styles.detailBadgeText}>Rp 2110rb spent</Text>
           </View>
         </ScrollView>
       </View>
@@ -42,7 +43,7 @@ export default function CustomerDetail({ customer, onBack }: any) {
         {/* Card INFORMASI KONTAK */}
         <View style={styles.infoContactCard}>
           <Text style={styles.infoContactTitle}>INFORMASI KONTAK</Text>
-          
+
           <View style={styles.contactItemRow}>
             <View style={styles.contactIconContainer}>
               <Ionicons name="call-outline" size={18} color="#1a73e8" />
@@ -50,26 +51,16 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <Text style={styles.contactItemText}>{customer.phone}</Text>
           </View>
 
-          <View style={styles.contactItemRow}>
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="mail-outline" size={18} color="#1a73e8" />
+          {customer.email ? (
+            <View style={[styles.contactItemRow, { borderBottomWidth: 0 }]}>
+              <View style={styles.contactIconContainer}>
+                <Ionicons name="mail-outline" size={18} color="#1a73e8" />
+              </View>
+              <Text style={styles.contactItemText}>{customer.email}</Text>
             </View>
-            <Text style={styles.contactItemText}>{customer.name.toLowerCase().replace(' ', '.')}@email.com</Text>
-          </View>
-
-          <View style={styles.contactItemRow}>
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="location-outline" size={18} color="#1a73e8" />
-            </View>
-            <Text style={styles.contactItemText}>Jl. Merdeka No. 12, Bandung</Text>
-          </View>
-
-          <View style={[styles.contactItemRow, { borderBottomWidth: 0 }]}>
-            <View style={styles.contactIconContainer}>
-              <Ionicons name="calendar-outline" size={18} color="#1a73e8" />
-            </View>
-            <Text style={styles.contactItemText}>Bergabung Jan 2024</Text>
-          </View>
+          ) : (
+            <View style={{ height: 4 }} />
+          )}
         </View>
 
         {/* Section KENDARAAN */}
@@ -78,43 +69,36 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <View style={styles.blueBarIndicator} />
             <Text style={styles.sectionHeadingTitle}>Kendaraan</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.blueActionLink}>+ Tambah</Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.vehicleCardItem}>
-          <View style={styles.vehicleIconBox}>
-            <Ionicons name="car-outline" size={24} color="#1a73e8" />
+        {loadingKendaraan ? (
+          <ActivityIndicator size="small" color="#1a73e8" style={{ marginBottom: 16 }} />
+        ) : kendaraanList.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="car-outline" size={32} color="#ccc" />
+            <Text style={styles.emptyText}>Belum ada kendaraan</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.vehicleNameRow}>
-              <Text style={styles.vehicleModelName}>{customer.car1}</Text>
-              <View style={styles.yearBadge}><Text style={styles.yearBadgeText}>2019</Text></View>
-            </View>
-            <View style={styles.vehicleMetaRow}>
-              <Text style={styles.plateNumberBadge}>{customer.plate1}</Text>
-              <Text style={styles.colorText}>Putih</Text>
-            </View>
-          </View>
-        </View>
-
-        {customer.car2 && (
-          <View style={styles.vehicleCardItem}>
-            <View style={styles.vehicleIconBox}>
-              <Ionicons name="car-outline" size={24} color="#1a73e8" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.vehicleNameRow}>
-                <Text style={styles.vehicleModelName}>{customer.car2}</Text>
-                <View style={styles.yearBadge}><Text style={styles.yearBadgeText}>2021</Text></View>
+        ) : (
+          kendaraanList.map((k) => (
+            <View key={k.kendaraan_id} style={styles.vehicleCardItem}>
+              <View style={styles.vehicleIconBox}>
+                <Ionicons name="car-outline" size={24} color="#1a73e8" />
               </View>
-              <View style={styles.vehicleMetaRow}>
-                <Text style={styles.plateNumberBadge}>{customer.plate2}</Text>
-                <Text style={styles.colorText}>Merah</Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.vehicleNameRow}>
+                  <Text style={styles.vehicleModelName}>{k.merek} {k.model}</Text>
+                  {k.tahun ? (
+                    <View style={styles.yearBadge}>
+                      <Text style={styles.yearBadgeText}>{k.tahun}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.vehicleMetaRow}>
+                  <Text style={styles.plateNumberBadge}>{k.nomor_polisi}</Text>
+                </View>
               </View>
             </View>
-          </View>
+          ))
         )}
 
         {/* Section HISTORI SERVIS */}
@@ -123,29 +107,13 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <View style={styles.greenBarIndicator} />
             <Text style={styles.sectionHeadingTitle}>Histori Servis</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.blueActionLink}>Semua  <Ionicons name="chevron-forward" size={14} /></Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.woHistoryCard}>
-          <View style={styles.woCardHeader}>
-            <View style={styles.woIdTag}><Text style={styles.woIdTagText}>#WO-0006</Text></View>
-            <View style={styles.woStatusSuccess}>
-              <Ionicons name="checkmark-circle-outline" size={14} color="#1ea446" />
-              <Text style={styles.woStatusSuccessText}>Selesai</Text>
-            </View>
-          </View>
-          <Text style={styles.woServiceTitle}>Ganti Kampas Rem + Minyak Rem</Text>
-          <View style={styles.woCardFooter}>
-            <View style={styles.woDateGroup}>
-              <Ionicons name="calendar-outline" size={14} color="#888" />
-              <Text style={styles.woDateText}>29 Mei 2026</Text>
-            </View>
-            <Text style={styles.woPriceText}>Rp 310.000</Text>
-          </View>
+        <View style={styles.emptyCard}>
+          <Ionicons name="receipt-outline" size={32} color="#ccc" />
+          <Text style={styles.emptyText}>Belum ada histori</Text>
         </View>
-        
+
         <View style={{ height: 30 }} />
       </ScrollView>
     </View>
@@ -163,7 +131,6 @@ const styles = StyleSheet.create({
   detailAvatar: { width: 65, height: 65, borderRadius: 20, backgroundColor: '#5294e2', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', marginRight: 15 },
   detailAvatarText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
   detailName: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  detailSubtitle: { color: '#b3d4ff', fontSize: 13, marginTop: 2 },
   badgeRow: { flexDirection: 'row', zIndex: 1 },
   detailHeaderBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginRight: 8 },
   detailBadgeText: { color: '#fff', fontSize: 12, fontWeight: '600', marginLeft: 4 },
@@ -178,7 +145,6 @@ const styles = StyleSheet.create({
   blueBarIndicator: { width: 4, height: 18, backgroundColor: '#1a73e8', borderRadius: 2, marginRight: 8 },
   greenBarIndicator: { width: 4, height: 18, backgroundColor: '#1ea446', borderRadius: 2, marginRight: 8 },
   sectionHeadingTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
-  blueActionLink: { color: '#1a73e8', fontSize: 14, fontWeight: '600' },
   vehicleCardItem: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 12, alignItems: 'center' },
   vehicleIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#e8f0fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   vehicleNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -187,16 +153,6 @@ const styles = StyleSheet.create({
   yearBadgeText: { color: '#1a73e8', fontSize: 11, fontWeight: 'bold' },
   vehicleMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   plateNumberBadge: { backgroundColor: '#222', color: '#fff', fontSize: 11, fontWeight: 'bold', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 8, letterSpacing: 0.5 },
-  colorText: { color: '#888', fontSize: 12 },
-  woHistoryCard: { backgroundColor: '#fff', borderRadius: 16, padding: 15, marginBottom: 12 },
-  woCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  woIdTag: { backgroundColor: '#f0f4f8', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  woIdTagText: { color: '#1a73e8', fontSize: 11, fontWeight: 'bold' },
-  woStatusSuccess: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e6f6ec', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  woStatusSuccessText: { color: '#1ea446', fontSize: 11, fontWeight: 'bold', marginLeft: 4 },
-  woServiceTitle: { fontSize: 15, fontWeight: 'bold', color: '#222', marginBottom: 12 },
-  woCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1f3f5', paddingTop: 10 },
-  woDateGroup: { flexDirection: 'row', alignItems: 'center' },
-  woDateText: { fontSize: 12, color: '#666', marginLeft: 5 },
-  woPriceText: { fontSize: 15, fontWeight: 'bold', color: '#1a73e8' }
+  emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, marginBottom: 12, alignItems: 'center' },
+  emptyText: { color: '#bbb', fontSize: 14, marginTop: 8 },
 });

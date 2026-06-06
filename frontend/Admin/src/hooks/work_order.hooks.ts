@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   WorkOrder,
   WorkOrderDetail,
+  InvoiceData,
   ProgressRequest,
   SuspendRequest,
 } from "../../src/@types/work_order.types";
@@ -38,13 +39,13 @@ export interface MekanikOption {
   nama: string;
 }
 
-// Payload create WO — field sesuai backend (catatan_awal, bukan deskripsi_kerusakan)
+// Payload create WO — field sesuai backend
 export interface CreateWorkOrderPayload {
   kendaraan_id: string;
   user_id?: string;
   booking_id?: string;
   mekanik_id?: string;
-  catatan_awal?: string;
+  deskripsi_kerusakan?: string;
   estimasi_biaya?: number;
 }
 
@@ -53,23 +54,24 @@ export interface CreateWorkOrderPayload {
 // ============================================================
 
 export function useGetAllWorkOrders() {
-  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({ // 👈 Ubah tipe generic menjadi array langsung
+  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({
     queryKey: ["getAllWorkOrders"],
     queryFn: () =>
-      baseFetch<WorkOrder[]>({ // 👈 Sesuai tipe data kembalian dari server
+      baseFetch<WorkOrder[]>({
         method: "GET",
         url: `/admin/work-orders`,
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
     retry: false,
     staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
 
-  // 👇 Karena data dari server langsung berbentuk array, langsung return data jika ada
-  const workOrders = useMemo(() => {
-    return Array.isArray(data) ? data : [];
+  const workOrders = useMemo<WorkOrder[]>(() => {
+    if (Array.isArray(data)) return data;
+    const wrapped = (data as any)?.data;
+    return Array.isArray(wrapped) ? wrapped : [];
   }, [data]);
 
   return { workOrders, isLoading, isPending, refetch };
@@ -80,25 +82,22 @@ export function useGetAllWorkOrders() {
 // ============================================================
 
 export function useGetWorkOrderById(woId: string | undefined) {
-  const { data, isLoading, refetch } = useQuery<WorkOrderDetail>({ // 👈 Ubah generic type
+  const { data, isLoading, refetch } = useQuery<WorkOrderDetail | null>({
     enabled: !!woId,
     queryKey: ["getWorkOrderById", woId],
     queryFn: () =>
-      baseFetch<WorkOrderDetail>({ // 👈 Ubah generic type
+      baseFetch<WorkOrderDetail>({
         method: "GET",
         url: `/admin/work-orders/${woId}`,
         options: { showError: false },
-      }),
+      }).then((res) => res ?? null),
     retry: false,
     staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
 
-  // 👇 Langsung berikan objek data jika berhasil diambil
-  const workOrder = useMemo(() => {
-    return data ? data : null;
-  }, [data]);
+  const workOrder = useMemo<WorkOrderDetail | null>(() => data ?? null, [data]);
 
   return { workOrder, isLoading, refetch };
 }
@@ -108,22 +107,24 @@ export function useGetWorkOrderById(woId: string | undefined) {
 // ============================================================
 
 export function useGetAllCustomers() {
-  const { data, isLoading } = useQuery<ApiResponse<CustomerOption[]>>({
+  const { data, isLoading } = useQuery<CustomerOption[]>({
     queryKey: ["getAllCustomers"],
     queryFn: () =>
-      baseFetch<ApiResponse<CustomerOption[]>>({
+      baseFetch<CustomerOption[]>({
         method: "GET",
         url: `/admin/customers`,
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
-  const customers = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
+  const customers = useMemo<CustomerOption[]>(() => {
+    if (Array.isArray(data)) return data;
+    const wrapped = (data as any)?.data;
+    return Array.isArray(wrapped) ? wrapped : [];
   }, [data]);
 
   return { customers, isLoading };
@@ -134,26 +135,25 @@ export function useGetAllCustomers() {
 // ============================================================
 
 export function useGetAllKendaraan(userId?: string) {
-  // Kalau userId diberikan → ambil kendaraan milik customer itu
-  // Kalau tidak → ambil semua kendaraan via GET /admin/kendaraan
-  const url = `/admin/kendaraan`;
-
-  const { data, isLoading } = useQuery<ApiResponse<KendaraanOption[]>>({
+  const { data, isLoading } = useQuery<KendaraanOption[]>({
     queryKey: ["getAllKendaraan", userId ?? "all"],
     queryFn: () =>
-      baseFetch<ApiResponse<KendaraanOption[]>>({
+      baseFetch<KendaraanOption[]>({
         method: "GET",
-        url,
+        url: `/admin/kendaraan`,
+        params: userId ? { user_id: userId } : undefined,
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
-  const kendaraanList = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
+  const kendaraanList = useMemo<KendaraanOption[]>(() => {
+    if (Array.isArray(data)) return data;
+    const wrapped = (data as any)?.data;
+    return Array.isArray(wrapped) ? wrapped : [];
   }, [data]);
 
   return { kendaraanList, isLoading };
@@ -164,25 +164,50 @@ export function useGetAllKendaraan(userId?: string) {
 // ============================================================
 
 export function useGetAllMekanik() {
-  const { data, isLoading } = useQuery<ApiResponse<MekanikOption[]>>({
+  const { data, isLoading } = useQuery<MekanikOption[]>({
     queryKey: ["getAllMekanik"],
     queryFn: () =>
-      baseFetch<ApiResponse<MekanikOption[]>>({
+      baseFetch<MekanikOption[]>({
         method: "GET",
         url: `/admin/mekaniks`,
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
-  const mekanikList = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
+  const mekanikList = useMemo<MekanikOption[]>(() => {
+    if (Array.isArray(data)) return data;
+    const wrapped = (data as any)?.data;
+    return Array.isArray(wrapped) ? wrapped : [];
   }, [data]);
 
   return { mekanikList, isLoading };
+}
+
+// ============================================================
+// GET INVOICE BY WO ID
+// ============================================================
+
+export function useGetInvoice(woId: string | undefined) {
+  const { data, isLoading, refetch } = useQuery<InvoiceData | null>({
+    enabled: !!woId,
+    queryKey: ["getInvoice", woId],
+    queryFn: () =>
+      baseFetch<InvoiceData>({
+        method: "GET",
+        url: `/admin/work-orders/${woId}/invoice`,
+        options: { showError: false },
+      }).then((res) => res ?? null),
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+
+  return { invoice: data ?? null, isLoading, refetch };
 }
 
 // ============================================================
@@ -288,6 +313,7 @@ export function useUploadProgressMutation({
     onSuccess: (data, { woId }) => {
       if (data?.statusCode === 200 || data?.statusCode === 201) {
         queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
         successAction();
       }
     },
@@ -362,4 +388,46 @@ export function useFinishWorkOrderMutation({
   });
 
   return { finishWorkOrderMutation };
+}
+
+// ============================================================
+// CONFIRM PAYMENT
+// ============================================================
+
+interface ConfirmPaymentPayload {
+  woId: string;
+  metode_pembayaran: string;
+  total_biaya: number;
+}
+
+export function useConfirmPaymentMutation({
+  successAction,
+  onError,
+}: {
+  successAction: () => void;
+  onError?: (msg: string) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: ({ woId, metode_pembayaran, total_biaya }: ConfirmPaymentPayload) =>
+      baseFetch<ApiResponse<null>>({
+        method: "POST",
+        url: `/admin/work-orders/${woId}/payment`,
+        payload: { metode_pembayaran, total_biaya },
+        options: { showError: false },
+      }),
+
+    onSuccess: (data, { woId }) => {
+      queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+      successAction();
+    },
+
+    onError: (error: any) => {
+      onError?.(error?.message ?? "Gagal memproses pembayaran");
+    },
+  });
+
+  return { confirmPaymentMutation };
 }

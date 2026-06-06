@@ -14,7 +14,7 @@ export const useInventory = (tipe?: InventoryTipe) => {
     setError(null);
     try {
       const result = await baseFetch<InventoryItem[]>({
-        url: '/inventory',
+        url: '/admin/inventory',
         method: 'GET',
         params: tipe ? { tipe } : undefined,
       });
@@ -42,7 +42,7 @@ export const useAddInventory = () => {
     setLoading(true);
     try {
       const result = await baseFetch<InventoryItem>({
-        url: '/inventory',
+        url: '/admin/inventory',
         method: 'POST',
         payload,
       });
@@ -67,7 +67,7 @@ export const useUpdateInventory = () => {
     setLoading(true);
     try {
       const result = await baseFetch<InventoryItem>({
-        url: `/inventory/${inventory_id}`,
+        url: `/admin/inventory/${inventory_id}`,
         method: 'PUT',
         payload,
       });
@@ -89,7 +89,7 @@ export const useDeleteInventory = () => {
     setLoading(true);
     try {
       await baseFetch<{ message: string }>({
-        url: `/inventory/${inventory_id}`,
+        url: `/admin/inventory/${inventory_id}`,
         method: 'DELETE',
       });
       return true;

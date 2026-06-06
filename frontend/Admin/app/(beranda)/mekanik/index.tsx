@@ -1,54 +1,96 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// PERBAIKAN: Import Header dihapus dari sini
-import { mechanics } from '../../../src/utils/dummydata'; 
 import AddMekanikModal from '../../../src/components/AddMekanikModal';
 import DeleteModal from '../../../src/components/DeleteModal';
 import MekanikCard from '../../../src/components/mekanik/MekanikCard';
+import {
+  useGetAllMekanik,
+  useCreateMekanikMutation,
+  useUpdateMekanikMutation,
+  useDeleteMekanikMutation,
+} from '../../../src/hooks/mekanik.hooks';
+import type { Mekanik } from '../../../src/@types/mekanik.types';
+import { useToast } from '../../../src/contexts/toast.context';
+
+const toCardItem = (m: Mekanik) => ({
+  id: m.mekanik_id,
+  initials: m.nama.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+  name: m.nama,
+  status: m.status,
+  spec: m.keahlian,
+  phone: m.telepon,
+  rating: '-',
+  wo: 0,
+});
 
 export default function MekanikScreen() {
-  const [mechanicsList, setMechanicsList] = useState(mechanics);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // States Modal
   const [isFormModalVisible, setFormModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedMekanik, setSelectedMekanik] = useState<any>(null);
+  const [selectedMekanik, setSelectedMekanik] = useState<Mekanik | null>(null);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const filteredMechanics = mechanicsList.filter(mekanik => 
-    mekanik.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mekanik.spec.toLowerCase().includes(searchQuery.toLowerCase())
+  const { showSuccess } = useToast();
+  const { mekaniks, isLoading } = useGetAllMekanik();
+  const { createMutation } = useCreateMekanikMutation({
+    successAction: () => { showSuccess("Mekanik berhasil ditambahkan"); setFormModalVisible(false); },
+  });
+  const { updateMutation } = useUpdateMekanikMutation({
+    successAction: () => { showSuccess("Mekanik berhasil diperbarui"); setFormModalVisible(false); },
+  });
+  const { deleteMutation } = useDeleteMekanikMutation({
+    successAction: () => { showSuccess("Mekanik berhasil dihapus"); setDeleteModalVisible(false); },
+  });
+
+  const cardItems = mekaniks.map(toCardItem);
+  const filteredItems = cardItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.spec.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddClick = () => { setIsEditMode(false); setSelectedMekanik(null); setFormModalVisible(true); };
-  const handleEditClick = (mekanik: any) => { setIsEditMode(true); setSelectedMekanik(mekanik); setFormModalVisible(true); };
-  const handleDeleteClick = (mekanik: any) => { setSelectedMekanik(mekanik); setDeleteModalVisible(true); };
+
+  const handleEditClick = (cardItem: any) => {
+    const mekanik = mekaniks.find(m => m.mekanik_id === cardItem.id) ?? null;
+    setIsEditMode(true);
+    setSelectedMekanik(mekanik);
+    setFormModalVisible(true);
+  };
+
+  const handleDeleteClick = (cardItem: any) => {
+    const mekanik = mekaniks.find(m => m.mekanik_id === cardItem.id) ?? null;
+    setSelectedMekanik(mekanik);
+    setDeleteModalVisible(true);
+  };
 
   const confirmDelete = () => {
-    if (selectedMekanik) { setMechanicsList(mechanicsList.filter(item => item.id !== selectedMekanik.id)); }
-    setDeleteModalVisible(false);
+    if (selectedMekanik) deleteMutation.mutate(selectedMekanik.mekanik_id);
   };
+
+  const handleSave = (data: { nama: string; telepon: string; keahlian: string; status: string }) => {
+    if (isEditMode && selectedMekanik) {
+      updateMutation.mutate({ id: selectedMekanik.mekanik_id, payload: data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <View style={styles.container}>
-      
-      {/* PERBAIKAN: Komponen <Header /> dihapus dari sini */}
-      
-      {/* Top Stats */}
       <View style={styles.topStats}>
         <View style={styles.topStatBox}>
-          <Text style={styles.topStatNumber}>{mechanicsList.length}</Text>
+          <Text style={styles.topStatNumber}>{mekaniks.length}</Text>
           <Text style={styles.topStatLabel}>Total Mekanik</Text>
         </View>
         <View style={styles.topStatBox}>
-          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status === 'Tersedia').length}</Text>
+          <Text style={styles.topStatNumber}>{mekaniks.filter(m => m.status === 'tersedia').length}</Text>
           <Text style={styles.topStatLabel}>Tersedia</Text>
         </View>
         <View style={styles.topStatBox}>
-          <Text style={styles.topStatNumber}>{mechanicsList.filter(m => m.status !== 'Tersedia').length}</Text>
+          <Text style={styles.topStatNumber}>{mekaniks.filter(m => m.status !== 'tersedia').length}</Text>
           <Text style={styles.topStatLabel}>Tidak Tersedia</Text>
         </View>
       </View>
@@ -58,40 +100,64 @@ export default function MekanikScreen() {
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#999" />
             <TextInput style={styles.searchInput} placeholder="Cari mekanik..." value={searchQuery} onChangeText={setSearchQuery} />
-            {searchQuery.length > 0 && <TouchableOpacity onPress={() => setSearchQuery('')}><Ionicons name="close-circle" size={18} color="#ccc" /></TouchableOpacity>}
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#ccc" />
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity style={styles.addBtnSmall} onPress={handleAddClick}>
-            <Ionicons name="add" size={20} color="#fff" /><Text style={styles.addBtnSmallText}>Tambah</Text>
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.addBtnSmallText}>Tambah</Text>
           </TouchableOpacity>
         </View>
 
-        <FlatList 
-          data={filteredMechanics} 
-          renderItem={({ item }) => <MekanikCard item={item} onEdit={handleEditClick} onDelete={handleDeleteClick} />} 
-          keyExtractor={item => item.id} 
-          showsVerticalScrollIndicator={false}
-        />
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#1a73e8" style={{ marginTop: 40 }} />
+        ) : (
+          <FlatList
+            data={filteredItems}
+            renderItem={({ item }) => (
+              <MekanikCard item={item} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+            )}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
 
       <TouchableOpacity style={styles.fab} onPress={handleAddClick}>
-        <Ionicons name="add" size={24} color="#fff" /><Text style={styles.fabText}>Tambah Mekanik</Text>
+        <Ionicons name="add" size={24} color="#fff" />
+        <Text style={styles.fabText}>Tambah Mekanik</Text>
       </TouchableOpacity>
 
-      <AddMekanikModal visible={isFormModalVisible} onClose={() => setFormModalVisible(false)} isEdit={isEditMode} mekanikData={selectedMekanik} />
-      <DeleteModal visible={isDeleteModalVisible} onClose={() => setDeleteModalVisible(false)} onConfirm={confirmDelete} title="Hapus Mekanik?" itemName={selectedMekanik?.name} />
+      <AddMekanikModal
+        visible={isFormModalVisible}
+        onClose={() => setFormModalVisible(false)}
+        isEdit={isEditMode}
+        mekanikData={selectedMekanik ? {
+          name: selectedMekanik.nama,
+          phone: selectedMekanik.telepon,
+          spec: selectedMekanik.keahlian,
+          status: selectedMekanik.status,
+        } : null}
+        onSave={handleSave}
+        isLoading={isSaving}
+      />
+      <DeleteModal
+        visible={isDeleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onConfirm={confirmDelete}
+        title="Hapus Mekanik?"
+        itemName={selectedMekanik?.nama ?? ''}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa' },
-  topStats: { 
-    flexDirection: 'row', 
-    backgroundColor: '#1a73e8', 
-    paddingBottom: 20, 
-    paddingTop: 15, // PERBAIKAN: Menambahkan padding top sebagai pengganti jarak Header
-    paddingHorizontal: 10 
-  },
+  topStats: { flexDirection: 'row', backgroundColor: '#1a73e8', paddingBottom: 20, paddingTop: 15, paddingHorizontal: 10 },
   topStatBox: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', borderRadius: 10, paddingVertical: 12, marginHorizontal: 5 },
   topStatNumber: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   topStatLabel: { color: '#bbdefb', fontSize: 12 },
