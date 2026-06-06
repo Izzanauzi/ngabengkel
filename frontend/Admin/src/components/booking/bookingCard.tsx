@@ -1,134 +1,85 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { Booking } from "@/src/@types/booking.types";
+import type { Booking } from "../../@types/booking.types";
 
-// ============================================================
-// HELPERS
-// ============================================================
-
-function formatETA(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleDateString("id-ID", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return isoString;
-  }
-}
-
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; color: string; bgColor: string; icon: string }
-> = {
+const STATUS_CONFIG: Record<string, {
+  label: string; color: string; bgColor: string; icon: string;
+}> = {
   menunggu_konfirmasi: {
     label: "Menunggu Konfirmasi",
-    color: "#D97706",
-    bgColor: "#FEF3C7",
-    icon: "time-outline",
+    color: "#D97706", bgColor: "#FEF3C7", icon: "time-outline",
   },
   disetujui: {
     label: "Disetujui",
-    color: "#059669",
-    bgColor: "#D1FAE5",
-    icon: "checkmark-circle-outline",
+    color: "#059669", bgColor: "#D1FAE5", icon: "checkmark-circle-outline",
   },
   ditolak: {
     label: "Ditolak",
-    color: "#DC2626",
-    bgColor: "#FEE2E2",
-    icon: "close-circle-outline",
+    color: "#DC2626", bgColor: "#FEE2E2", icon: "close-circle-outline",
   },
   dibatalkan: {
     label: "Dibatalkan",
-    color: "#6B7280",
-    bgColor: "#F3F4F6",
-    icon: "ban-outline",
+    color: "#6B7280", bgColor: "#F3F4F6", icon: "ban-outline",
   },
 };
 
-// ============================================================
-// PROPS
-// ============================================================
+function formatETA(iso: string) {
+  try {
+    const date = new Date(iso);
+    const options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "short", year: "numeric" };
+    const dateStr = date.toLocaleDateString("id-ID", options);
+    const timeStr = date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
+    return `${dateStr} · ${timeStr}`;
+  } catch { return iso; }
+}
 
 interface BookingCardProps {
   booking: Booking;
-  onAccept?: (bookingId: string) => void;
-  onReject?: (bookingId: string) => void;
-  isAccepting?: boolean;
-  isRejecting?: boolean;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  isAccepting: boolean;
+  isRejecting: boolean;
 }
 
-// ============================================================
-// COMPONENT
-// ============================================================
-
 export default function BookingCard({
-  booking,
-  onAccept,
-  onReject,
-  isAccepting,
-  isRejecting,
+  booking, onAccept, onReject, isAccepting, isRejecting,
 }: BookingCardProps) {
-  const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG["menunggu_konfirmasi"];
+  const st = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG["menunggu_konfirmasi"];
   const isPending = booking.status === "menunggu_konfirmasi";
-
-  const handleAccept = () => {
-    onAccept?.(booking.booking_id);
-  };
-
-  const handleReject = () => {
-    // Alert.prompt hanya tersedia di iOS native — tidak support web/Android
-    // Input alasan ditangani oleh RejectModal di parent (index.tsx)
-    onReject?.(booking.booking_id);
-  };
+  const shortId = `#BK-${booking.booking_id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
 
   return (
     <View style={styles.card}>
-      {/* Header: booking ID + status */}
-      <View style={styles.cardHeader}>
-        <Text style={styles.bookingId}>
-          #{booking.booking_id.slice(0, 8).toUpperCase()}
-        </Text>
-        <View style={[styles.statusBadge, { backgroundColor: statusCfg.bgColor }]}>
-          <Ionicons
-            name={statusCfg.icon as any}
-            size={12}
-            color={statusCfg.color}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.statusText, { color: statusCfg.color }]}>
-            {statusCfg.label}
-          </Text>
+      {/* Top Accent Line */}
+      <View style={styles.topAccent} />
+
+      {/* Header ID & Status Badge */}
+      <View style={styles.header}>
+        <View style={styles.idBadge}>
+          <Text style={styles.idText}>{shortId}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: st.bgColor }]}>
+          <Ionicons name={st.icon as any} size={13} color={st.color} style={{ marginRight: 4 }} />
+          <Text style={[styles.statusBadgeText, { color: st.color }]}>{st.label}</Text>
         </View>
       </View>
 
-      {/* Info pengguna */}
+      {/* Profile Row */}
       {booking.user && (
         <View style={styles.userRow}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person-outline" size={16} color="#6B7280" />
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={18} color="#2266DD" />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: "center" }}>
             <Text style={styles.userName}>{booking.user.nama}</Text>
             {booking.kendaraan && (
               <View style={styles.vehicleRow}>
+                <Ionicons name="bicycle-outline" size={14} color="#9CA3AF" style={{ marginRight: 2 }} />
                 <Text style={styles.vehicleText}>
-                  {booking.kendaraan.merek} {booking.kendaraan.model}{" "}
+                  {booking.kendaraan.merek} {booking.kendaraan.model}
                 </Text>
-                <View style={styles.platBadge}>
+                <View style={styles.plat}>
                   <Text style={styles.platText}>{booking.kendaraan.nomor_polisi}</Text>
                 </View>
               </View>
@@ -137,62 +88,68 @@ export default function BookingCard({
         </View>
       )}
 
-      <View style={styles.divider} />
-
-      {/* Detail info */}
-      <View style={styles.infoGroup}>
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
-          <Text style={styles.infoText}>{formatETA(booking.eta)}</Text>
+      {/* Detail Rows dengan Ikon Bundar Tipis */}
+      <View style={styles.details}>
+        <View style={styles.detailRow}>
+          <View style={styles.iconWrapper}>
+            <Ionicons name="calendar" size={14} color="#9CA3AF" />
+          </View>
+          <Text style={styles.detailText}>{formatETA(booking.eta)}</Text>
         </View>
 
         {booking.user?.telepon && (
-          <View style={styles.infoRow}>
-            <Ionicons name="call-outline" size={14} color="#9CA3AF" />
-            <Text style={styles.infoText}>{booking.user.telepon}</Text>
+          <View style={styles.detailRow}>
+            <View style={styles.iconWrapper}>
+              <Ionicons name="call" size={14} color="#9CA3AF" />
+            </View>
+            <Text style={styles.detailText}>{booking.user.telepon}</Text>
           </View>
         )}
 
         {booking.keluhan_awal && (
-          <View style={styles.infoRow}>
-            <Ionicons name="chatbox-ellipses-outline" size={14} color="#9CA3AF" />
-            <Text style={styles.infoText} numberOfLines={2}>
-              {booking.keluhan_awal}
-            </Text>
+          <View style={styles.detailRow}>
+            <View style={styles.iconWrapper}>
+              <Ionicons name="chatbox-ellipses" size={14} color="#9CA3AF" />
+            </View>
+            <Text style={styles.detailText} numberOfLines={2}>{booking.keluhan_awal}</Text>
           </View>
         )}
 
         {booking.alasan_tolak && (
-          <View style={styles.infoRow}>
-            <Ionicons name="alert-circle-outline" size={14} color="#DC2626" />
-            <Text style={[styles.infoText, { color: "#DC2626" }]} numberOfLines={2}>
+          <View style={styles.detailRow}>
+            <View style={[styles.iconWrapper, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="alert-circle" size={14} color="#DC2626" />
+            </View>
+            <Text style={[styles.detailText, { color: "#DC2626" }]} numberOfLines={2}>
               {booking.alasan_tolak}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Tombol aksi — hanya tampil kalau pending */}
-      {isPending && (onAccept || onReject) && (
-        <View style={styles.actionRow}>
+      <View style={styles.divider} />
+
+      {/* Action Buttons */}
+      {isPending && (
+        <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.acceptBtn]}
-            onPress={handleAccept}
+            onPress={() => onAccept(booking.booking_id)}
             disabled={isAccepting || isRejecting}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             <Ionicons name="checkmark-circle-outline" size={16} color="#059669" />
-            <Text style={[styles.actionBtnText, { color: "#059669" }]}>Setujui</Text>
+            <Text style={[styles.actionText, { color: "#059669" }]}>Setujui</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.rejectBtn]}
-            onPress={handleReject}
+            onPress={() => onReject(booking.booking_id)}
             disabled={isAccepting || isRejecting}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-            <Text style={[styles.actionBtnText, { color: "#DC2626" }]}>Tolak</Text>
+            <Text style={[styles.actionText, { color: "#DC2626" }]}>Tolak</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -200,134 +157,84 @@ export default function BookingCard({
   );
 }
 
-// ============================================================
-// STYLES
-// ============================================================
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderRadius: 20, 
     marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  cardHeader: {
+  topAccent: {
+    height: 4,
+    backgroundColor: "#E15B26",
+    marginHorizontal: -16,
+    marginBottom: 14,
+  },
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  bookingId: {
-    fontFamily: "monospace",
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6B7280",
+  idBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
+  idText: { fontSize: 11, fontWeight: "700", color: "#3B82F6" },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
+  statusBadgeText: { fontSize: 11, fontWeight: "600" },
   userRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginBottom: 12,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 12,
+    marginBottom: 16,
   },
-  userName: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 3,
+  avatar: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center", justifyContent: "center",
   },
-  vehicleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  vehicleText: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  platBadge: {
-    backgroundColor: "#1D4ED8",
+  userName: { fontSize: 15, fontWeight: "700", color: "#0F172A", marginBottom: 2 },
+  vehicleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  vehicleText: { fontSize: 12, color: "#64748B", fontWeight: "500" },
+  plat: {
+    backgroundColor: "#1E293B", 
     borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 6, paddingVertical: 2,
   },
-  platText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
+  platText: { fontSize: 10, fontWeight: "700", color: "#fff", letterSpacing: 0.5 },
+  details: { gap: 10, marginBottom: 4 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  iconWrapper: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: "#F1F5F9", 
+    alignItems: "center", justifyContent: "center",
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginBottom: 12,
-  },
-  infoGroup: {
-    gap: 6,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 13,
-    color: "#374151",
-    flex: 1,
-    lineHeight: 18,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 14,
-  },
+  detailText: { fontSize: 13, color: "#334155", flex: 1, fontWeight: "400" },
+  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 14 },
+  actions: { flexDirection: "row", gap: 12 },
   actionBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    flex: 1, flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 6,
+    paddingVertical: 10, borderRadius: 12, borderWidth: 1.5,
   },
-  acceptBtn: {
-    borderColor: "#059669",
-    backgroundColor: "#F0FDF4",
-  },
-  rejectBtn: {
-    borderColor: "#DC2626",
-    backgroundColor: "#FFF5F5",
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  acceptBtn: { borderColor: "#059669", backgroundColor: "#fff" },
+  rejectBtn: { borderColor: "#DC2626", backgroundColor: "#fff" },
+  actionText: { fontSize: 14, fontWeight: "600" },
 });

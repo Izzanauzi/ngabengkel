@@ -1,4 +1,4 @@
-import { baseFetch } from "@/utils/baseFetch";
+import { baseFetch } from "../utils/baseFetch";
  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
  import { useMemo } from "react";
  

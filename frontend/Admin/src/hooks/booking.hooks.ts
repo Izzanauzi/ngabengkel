@@ -1,19 +1,10 @@
 import { baseFetch } from "../utils/baseFetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { Booking, RejectPayload } from "../@types/booking.types";
+import type { Booking } from "../@types/booking.types";
 
 // ============================================================
-// Response shape dari backend Go:
-//   GET  /api/v1/admin/bookings        → Booking[]  (langsung array)
-//   POST /api/v1/admin/bookings/{id}/accept  → { message: string }
-//   POST /api/v1/admin/bookings/{id}/reject  → { message: string }
-//   Error                               → { error: string }
-// ============================================================
-
-// ============================================================
-// GET PENDING — ambil semua booking menunggu konfirmasi (admin)
-// GET /admin/bookings
+// GET PENDING — GET /admin/bookings
 // ============================================================
 
 export function useGetPendingBookings() {
@@ -34,20 +25,14 @@ export function useGetPendingBookings() {
   });
 
   const bookings = useMemo(() => data ?? [], [data]);
-
   return { bookings, isLoading, isPending, refetch };
 }
 
 // ============================================================
-// ACCEPT — setujui booking
-// POST /admin/bookings/{id}/accept
+// ACCEPT — POST /bookings/{id}/approve  (sesuai OpenAPI doc)
 // ============================================================
 
-interface UseAcceptBookingProps {
-  successAction?: () => void;
-}
-
-export function useAcceptBookingMutation({ successAction }: UseAcceptBookingProps = {}) {
+export function useAcceptBookingMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const acceptMutation = useMutation({
@@ -55,7 +40,7 @@ export function useAcceptBookingMutation({ successAction }: UseAcceptBookingProp
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/bookings/${bookingId}/accept`,
-        options: { showError: true }, // tampilkan error dari server otomatis
+        options: { showError: true },
       }),
 
     onSuccess: () => {
@@ -68,24 +53,20 @@ export function useAcceptBookingMutation({ successAction }: UseAcceptBookingProp
 }
 
 // ============================================================
-// REJECT — tolak booking dengan alasan
-// POST /api/v1/admin/bookings/{id}/reject
+// REJECT — POST /bookings/{id}/reject  (sesuai OpenAPI doc)
+// field: alasan (bukan alasan_tolak)
 // ============================================================
 
-interface UseRejectBookingProps {
-  successAction?: () => void;
-}
-
-export function useRejectBookingMutation({ successAction }: UseRejectBookingProps = {}) {
+export function useRejectBookingMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const rejectMutation = useMutation({
-    mutationFn: ({ bookingId, payload }: { bookingId: string; payload: RejectPayload }) =>
+    mutationFn: ({ bookingId, alasan_tolak }: { bookingId: string; alasan_tolak: string }) =>
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/bookings/${bookingId}/reject`,
-        payload,
-        options: { showError: true }, // tampilkan error dari server otomatis
+        payload: { alasan_tolak: alasan_tolak },
+        options: { showError: true },
       }),
 
     onSuccess: () => {
@@ -95,4 +76,30 @@ export function useRejectBookingMutation({ successAction }: UseRejectBookingProp
   });
 
   return { rejectMutation };
+}
+
+// ============================================================
+// GET ALL (semua status) — GET /bookings  (admin dapat semua)
+// Dipakai untuk tab Disetujui & Ditolak
+// ============================================================
+
+export function useGetAllBookings() {
+  const { data, isLoading, refetch } = useQuery<Booking[]>({
+    queryKey: ["adminBookingsAll"],
+
+    queryFn: () =>
+      baseFetch<Booking[]>({
+        method: "GET",
+        url: `/admin/bookings`,
+        options: { showError: false },
+      }).then((res) => res ?? []),
+
+    retry: false,
+    staleTime: 1 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
+  const bookings = useMemo(() => data ?? [], [data]);
+  return { bookings, isLoading, refetch };
 }
