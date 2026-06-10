@@ -170,6 +170,8 @@ type mockWorkOrderRepo struct {
 	findByIDFn                func(string) (*model.WorkOrderDetail, error)
 	getProgressByWOIDFn       func(string) ([]model.Progress, error)
 	updateStatusFn            func(string, string) error
+	finishWOFn                func(string, float64) error
+	updateBiayaFn             func(string, float64, float64) error
 	getAllFn                  func() ([]model.WorkOrder, error)
 	createFn                 func(*model.WorkOrder) error
 	addProgressFn            func(*model.Progress) error
@@ -209,6 +211,18 @@ func (m *mockWorkOrderRepo) GetProgressByWOID(woID string) ([]model.Progress, er
 func (m *mockWorkOrderRepo) UpdateStatus(woID, status string) error {
 	if m.updateStatusFn != nil {
 		return m.updateStatusFn(woID, status)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) FinishWO(woID string, biayaJasa float64) error {
+	if m.finishWOFn != nil {
+		return m.finishWOFn(woID, biayaJasa)
+	}
+	return nil
+}
+func (m *mockWorkOrderRepo) UpdateBiaya(woID string, biayaJasa, estimasiBiaya float64) error {
+	if m.updateBiayaFn != nil {
+		return m.updateBiayaFn(woID, biayaJasa, estimasiBiaya)
 	}
 	return nil
 }

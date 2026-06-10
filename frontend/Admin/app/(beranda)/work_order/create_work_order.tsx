@@ -12,18 +12,19 @@ import {
   Modal,
   FlatList,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { useCreateWorkOrderMutation } from "../../../src/hooks/work_order.hooks";
 import {
+  useCreateWorkOrderMutation,
   useGetAllCustomers,
   useGetAllKendaraan,
   useGetAllMekanik,
-  type CustomerOption,
-  type KendaraanOption,
-  type MekanikOption,
-} from "../../../src/hooks/customer_kendaraan.hooks";
-import type { WorkOrderRequest } from "../../../src/@types/work_order.types";
+  CreateWorkOrderPayload,
+  CustomerOption,
+  KendaraanOption,
+  MekanikOption,
+} from "../../../src/hooks/work_order.hooks";
 
 // ── Generic Dropdown ──────────────────────────────────────────────────────────
 
@@ -302,6 +303,19 @@ const dd = StyleSheet.create({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function CreateWorkOrderScreen() {
+  const {
+    booking_id,
+    user_id: prefilledUserId,
+    kendaraan_id: prefilledKendaraanId,
+    keluhan,
+  } = useLocalSearchParams<{
+    booking_id?: string;
+    user_id?: string;
+    kendaraan_id?: string;
+    keluhan?: string;
+  }>();
+
+  // State selections
   const [selectedCustomer, setSelectedCustomer] =
     useState<CustomerOption | null>(null);
   const [selectedKendaraan, setSelectedKendaraan] =
@@ -318,15 +332,29 @@ export default function CreateWorkOrderScreen() {
   const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan();
   const { mekanikList, isLoading: loadingMekanik } = useGetAllMekanik();
 
-  // Filter kendaraan by customer kalau sudah dipilih
-  const filteredKendaraan = useMemo(
-    () =>
-      selectedCustomer
-        ? kendaraanList.filter((k) => k.user_id === selectedCustomer.user_id)
-        : kendaraanList,
-    [kendaraanList, selectedCustomer]
-  );
+  // Pre-fill from booking params (run once when data is ready)
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    if (prefillDone.current) return;
+    if (!prefilledKendaraanId && !prefilledUserId) return;
+    if (loadingCustomers || loadingKendaraan) return;
 
+    if (prefilledUserId) {
+      const customer = customers.find((c) => c.user_id === prefilledUserId);
+      if (customer) setSelectedCustomer(customer);
+    }
+    if (prefilledKendaraanId) {
+      const kendaraan = kendaraanList.find(
+        (k) => k.kendaraan_id === prefilledKendaraanId
+      );
+      if (kendaraan) setSelectedKendaraan(kendaraan);
+    }
+    if (keluhan) setCatatanAwal(keluhan);
+
+    prefillDone.current = true;
+  }, [customers, kendaraanList, loadingCustomers, loadingKendaraan]);
+
+  // Mapping ke DropdownItem
   const customerItems = useMemo<DropdownItem[]>(
     () =>
       customers.map((c) => ({
@@ -357,9 +385,13 @@ export default function CreateWorkOrderScreen() {
     [mekanikList]
   );
 
-  const { createMutation } = useCreateWorkOrderMutation({
-    successAction: (woId) =>
-      router.replace(`/(beranda)/work_order/work_order_detail?id=${woId}` as any),
+  const { createWorkOrderMutation } = useCreateWorkOrderMutation({
+    onSuccess: (woId) => {
+      router.replace(
+        `/(beranda)/work_order/work_order_detail?id=${woId}` as any
+      );
+    },
+    onError: (msg) => setSubmitError(msg),
   });
 
   const handleSubmit = () => {
@@ -370,15 +402,19 @@ export default function CreateWorkOrderScreen() {
     }
     setErrors({});
 
-    const payload: WorkOrderRequest = {
-      kendaraan_id: selectedKendaraan.kendaraan_id,
-      ...(selectedCustomer && { user_id: selectedCustomer.user_id }),
-      ...(selectedMekanik && { mekanik_id: selectedMekanik.mekanik_id }),
-      ...(catatanAwal.trim() && { deskripsi_kerusakan: catatanAwal.trim() }),
-      ...(estimasi.trim() && { estimasi_biaya: parseFloat(estimasi) }),
+    const payload: CreateWorkOrderPayload = {
+      kendaraan_id: selectedKendaraan!.kendaraan_id,
     };
 
-    createMutation.mutate(payload);
+    if (selectedCustomer) payload.user_id = selectedCustomer.user_id;
+    if (selectedMekanik) payload.mekanik_id = selectedMekanik.mekanik_id;
+    if (catatanAwal.trim()) payload.deskripsi_kerusakan = catatanAwal.trim();
+    if (estimasiBiaya.trim())
+      payload.estimasi_biaya = parseInt(estimasiBiaya, 10);
+    if (booking_id) payload.booking_id = booking_id;
+
+    console.log("[CreateWO] payload:", JSON.stringify(payload, null, 2));
+    createWorkOrderMutation.mutate(payload);
   };
 
   return (
@@ -392,6 +428,22 @@ export default function CreateWorkOrderScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Booking badge */}
+          {booking_id && (
+            <View style={styles.bookingBadge}>
+              <Ionicons
+                name="calendar-check-outline"
+                size={14}
+                color="#2563EB"
+              />
+              <Text style={styles.bookingBadgeText}>
+                Dari Booking #
+                {booking_id.replace(/-/g, "").slice(0, 6).toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          {/* Error Banner */}
           {submitError && (
             <View style={s.errorBanner}>
               <Ionicons name="alert-circle" size={16} color="#DC2626" />
@@ -489,8 +541,8 @@ export default function CreateWorkOrderScreen() {
               onClear={() => setSelectedMekanik(null)}
             />
 
-            <View style={s.field}>
-              <Text style={s.fieldLabel}>Catatan / Keluhan Awal</Text>
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Deskripsi Kerusakan</Text>
               <TextInput
                 style={[s.input, s.textarea]}
                 value={catatanAwal}
@@ -576,20 +628,21 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFF" },
-  scroll: { padding: 16 },
-  errorBanner: {
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
+  scrollContent: { padding: 16 },
+  bookingBadge: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 10,
-    padding: 12,
+    alignItems: "center",
     gap: 8,
-    marginBottom: 14,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
   },
-  errorBannerText: { flex: 1, fontSize: 13, color: "#DC2626", lineHeight: 18 },
+  bookingBadgeText: { fontSize: 13, fontWeight: "600", color: "#2563EB" },
   section: {
     backgroundColor: "#FFF",
     borderRadius: 14,

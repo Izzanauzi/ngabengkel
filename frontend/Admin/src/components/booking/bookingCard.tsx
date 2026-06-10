@@ -38,15 +38,17 @@ interface BookingCardProps {
   booking: Booking;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onCreateWO?: (booking: Booking) => void;
   isAccepting: boolean;
   isRejecting: boolean;
 }
 
 export default function BookingCard({
-  booking, onAccept, onReject, isAccepting, isRejecting,
+  booking, onAccept, onReject, onCreateWO, isAccepting, isRejecting,
 }: BookingCardProps) {
   const st = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG["menunggu_konfirmasi"];
   const isPending = booking.status === "menunggu_konfirmasi";
+  const isApproved = booking.status === "disetujui";
   const shortId = `#BK-${booking.booking_id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
 
   return (
@@ -153,6 +155,17 @@ export default function BookingCard({
           </TouchableOpacity>
         </View>
       )}
+
+      {isApproved && onCreateWO && (
+        <TouchableOpacity
+          style={styles.createWOBtn}
+          onPress={() => onCreateWO(booking)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add-circle-outline" size={16} color="#fff" />
+          <Text style={styles.createWOText}>Buat Work Order</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -237,4 +250,10 @@ const styles = StyleSheet.create({
   acceptBtn: { borderColor: "#059669", backgroundColor: "#fff" },
   rejectBtn: { borderColor: "#DC2626", backgroundColor: "#fff" },
   actionText: { fontSize: 14, fontWeight: "600" },
+  createWOBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: "#2563EB",
+  },
+  createWOText: { fontSize: 14, fontWeight: "700", color: "#fff" },
 });
