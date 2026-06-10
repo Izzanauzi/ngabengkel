@@ -40,7 +40,7 @@ function AppShell() {
     inventori: "Inventori",
     laporan: "Laporan",
   };
-  const pageTitle = PAGE_TITLES[segment] ?? "Admin";
+  const pageTitle = PAGE_TITLES[segment];
 
   const showShell = !isPublic && !isLoading && !!token;
 

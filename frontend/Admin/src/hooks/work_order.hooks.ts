@@ -1,259 +1,99 @@
 import { baseFetch } from "../utils/baseFetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
-import {
+import { useMemo, useState, useCallback } from "react";
+import type {
   WorkOrder,
   WorkOrderDetail,
-  ProgressRequest,
-  SuspendRequest,
-} from "../../src/@types/work_order.types";
-
-interface ApiResponse<T> {
-  statusCode: number;
-  message: string;
-  data: T;
-}
+  WorkOrderRequest,
+} from "../@types/work_order.types";
 
 // ============================================================
-// TIPE DROPDOWN
-// ============================================================
-
-export interface CustomerOption {
-  user_id: string;
-  nama: string;
-  email: string;
-  telepon?: string | null;
-}
-
-export interface KendaraanOption {
-  kendaraan_id: string;
-  merek: string;
-  model: string;
-  nomor_polisi: string;
-  tahun: number;
-}
-
-export interface MekanikOption {
-  mekanik_id: string;
-  nama: string;
-}
-
-// Payload create WO — field sesuai backend (catatan_awal, bukan deskripsi_kerusakan)
-export interface CreateWorkOrderPayload {
-  kendaraan_id: string;
-  user_id?: string;
-  booking_id?: string;
-  mekanik_id?: string;
-  catatan_awal?: string;
-  estimasi_biaya?: number;
-}
-
-// ============================================================
-// GET ALL WORK ORDERS
+// GET ALL — GET /admin/work-orders
 // ============================================================
 
 export function useGetAllWorkOrders() {
-  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({ // 👈 Ubah tipe generic menjadi array langsung
-    queryKey: ["getAllWorkOrders"],
+  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({
+    queryKey: ["adminWorkOrders"],
     queryFn: () =>
-      baseFetch<WorkOrder[]>({ // 👈 Sesuai tipe data kembalian dari server
+      baseFetch<WorkOrder[]>({
         method: "GET",
-        url: `/admin/work-orders`,
+        url: "/admin/work-orders",
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
     retry: false,
-    staleTime: 0,
+    staleTime: 1 * 60 * 1000,
     refetchOnMount: true,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 
-  // 👇 Karena data dari server langsung berbentuk array, langsung return data jika ada
-  const workOrders = useMemo(() => {
-    return Array.isArray(data) ? data : [];
-  }, [data]);
-
+  const workOrders = useMemo(() => data ?? [], [data]);
   return { workOrders, isLoading, isPending, refetch };
 }
 
 // ============================================================
-// GET WORK ORDER DETAIL BY ID
+// GET BY ID — GET /admin/work-orders/{id}
 // ============================================================
 
-export function useGetWorkOrderById(woId: string | undefined) {
-  const { data, isLoading, refetch } = useQuery<WorkOrderDetail>({ // 👈 Ubah generic type
+export function useGetWorkOrderById(woId: string) {
+  const { data, isLoading, refetch } = useQuery<WorkOrderDetail>({
+    queryKey: ["adminWorkOrderDetail", woId],
     enabled: !!woId,
-    queryKey: ["getWorkOrderById", woId],
     queryFn: () =>
-      baseFetch<WorkOrderDetail>({ // 👈 Ubah generic type
+      baseFetch<WorkOrderDetail>({
         method: "GET",
         url: `/admin/work-orders/${woId}`,
         options: { showError: false },
+      }).then((res) => {
+        if (!res) throw new Error("work order tidak ditemukan");
+        return res;
       }),
     retry: false,
-    staleTime: 0,
+    staleTime: 30 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
 
-  // 👇 Langsung berikan objek data jika berhasil diambil
-  const workOrder = useMemo(() => {
-    return data ? data : null;
-  }, [data]);
-
-  return { workOrder, isLoading, refetch };
+  return { workOrder: data ?? null, isLoading, refetch };
 }
 
 // ============================================================
-// DROPDOWN — GET ALL CUSTOMERS
+// CREATE — POST /admin/work-orders
 // ============================================================
 
-export function useGetAllCustomers() {
-  const { data, isLoading } = useQuery<ApiResponse<CustomerOption[]>>({
-    queryKey: ["getAllCustomers"],
-    queryFn: () =>
-      baseFetch<ApiResponse<CustomerOption[]>>({
-        method: "GET",
-        url: `/admin/customers`,
-        options: { showError: false },
-      }),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const customers = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
-  }, [data]);
-
-  return { customers, isLoading };
-}
-
-// ============================================================
-// DROPDOWN — GET ALL KENDARAAN (opsional: filter by userId)
-// ============================================================
-
-export function useGetAllKendaraan(userId?: string) {
-  // Kalau userId diberikan → ambil kendaraan milik customer itu
-  // Kalau tidak → ambil semua kendaraan via GET /admin/kendaraan
-  const url = `/admin/kendaraan`;
-
-  const { data, isLoading } = useQuery<ApiResponse<KendaraanOption[]>>({
-    queryKey: ["getAllKendaraan", userId ?? "all"],
-    queryFn: () =>
-      baseFetch<ApiResponse<KendaraanOption[]>>({
-        method: "GET",
-        url,
-        options: { showError: false },
-      }),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const kendaraanList = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
-  }, [data]);
-
-  return { kendaraanList, isLoading };
-}
-
-// ============================================================
-// DROPDOWN — GET ALL MEKANIK
-// ============================================================
-
-export function useGetAllMekanik() {
-  const { data, isLoading } = useQuery<ApiResponse<MekanikOption[]>>({
-    queryKey: ["getAllMekanik"],
-    queryFn: () =>
-      baseFetch<ApiResponse<MekanikOption[]>>({
-        method: "GET",
-        url: `/admin/mekaniks`,
-        options: { showError: false },
-      }),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const mekanikList = useMemo(() => {
-    return data?.statusCode === 200 ? data.data : [];
-  }, [data]);
-
-  return { mekanikList, isLoading };
-}
-
-// ============================================================
-// CREATE WORK ORDER
-// ============================================================
-
-interface UseCreateWorkOrderMutationProps {
-  successAction: (woId: string) => void;
-  onError?: (message: string) => void;
-}
-
-export function useCreateWorkOrderMutation({
-  successAction,
-  onError,
-}: UseCreateWorkOrderMutationProps) {
+export function useCreateWorkOrderMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
-  const createWorkOrderMutation = useMutation({
-    mutationFn: (payload: CreateWorkOrderPayload) =>
-      baseFetch<ApiResponse<WorkOrder>>({
-        method: "POST",
-        url: `/admin/work-orders`,
-        payload,
-        options: { showError: false },
-      }),
-
+  const createMutation = useMutation({
+    mutationFn: (payload: WorkOrderRequest) =>
+      baseFetch<WorkOrder>({ ... }),
     onSuccess: (data) => {
-      if (data?.statusCode === 200 || data?.statusCode === 201) {
-        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-        successAction(data.data.wo_id);
-      } else {
-        // API return non-2xx tapi tidak throw (edge case baseFetch)
-        onError?.(data?.message ?? "Gagal membuat work order");
-      }
-    },
-
-    onError: (_error: any) => {
-      const msg =
-        _error?.message ?? "Gagal membuat work order. Coba lagi.";
-      onError?.(msg);
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrders"] });
+      if (data?.wo_id) successAction?.(data.wo_id);  // ← kirim wo_id
     },
   });
 
-  return { createWorkOrderMutation };
+  return { createMutation };
 }
 
 // ============================================================
-// START WORK ORDER
+// START — POST /admin/work-orders/{id}/start
+// Return: startWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
-export function useStartWorkOrderMutation({
-  successAction,
-}: {
-  successAction: () => void;
-}) {
+export function useStartWorkOrderMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const startWorkOrderMutation = useMutation({
     mutationFn: (woId: string) =>
-      baseFetch<ApiResponse<null>>({
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/start`,
-        options: { showError: false },
+        options: { showError: true },
       }),
-
-    onSuccess: (data, woId) => {
-      if (data?.statusCode === 200) {
-        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-        queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
-        successAction();
-      }
+    onSuccess: (_, woId) => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrderDetail", woId] });
+      successAction?.();
     },
   });
 
@@ -261,35 +101,27 @@ export function useStartWorkOrderMutation({
 }
 
 // ============================================================
-// UPLOAD PROGRESS
+// UPLOAD PROGRESS — POST /admin/work-orders/{id}/progress
+// Return: uploadProgressMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
-interface UploadProgressPayload {
-  woId: string;
-  payload: ProgressRequest;
-}
-
-export function useUploadProgressMutation({
-  successAction,
-}: {
-  successAction: () => void;
-}) {
+export function useUploadProgressMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const uploadProgressMutation = useMutation({
-    mutationFn: ({ woId, payload }: UploadProgressPayload) =>
-      baseFetch<ApiResponse<null>>({
+    mutationFn: ({ woId, payload }: {
+      woId: string;
+      payload: { deskripsi: string; tipe?: string; foto_url?: string };
+    }) =>
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/progress`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
-
-    onSuccess: (data, { woId }) => {
-      if (data?.statusCode === 200 || data?.statusCode === 201) {
-        queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
-        successAction();
-      }
+    onSuccess: (_, { woId }) => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrderDetail", woId] });
+      successAction?.();
     },
   });
 
@@ -297,36 +129,28 @@ export function useUploadProgressMutation({
 }
 
 // ============================================================
-// SUSPEND WORK ORDER
+// SUSPEND — POST /admin/work-orders/{id}/suspend
+// Return: suspendWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
-interface SuspendPayload {
-  woId: string;
-  payload: SuspendRequest;
-}
-
-export function useSuspendWorkOrderMutation({
-  successAction,
-}: {
-  successAction: () => void;
-}) {
+export function useSuspendWorkOrderMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const suspendWorkOrderMutation = useMutation({
-    mutationFn: ({ woId, payload }: SuspendPayload) =>
-      baseFetch<ApiResponse<null>>({
+    mutationFn: ({ woId, payload }: {
+      woId: string;
+      payload: { deskripsi: string; est_biaya_tambahan: number };
+    }) =>
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/suspend`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
-
-    onSuccess: (data, { woId }) => {
-      if (data?.statusCode === 200) {
-        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-        queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
-        successAction();
-      }
+    onSuccess: (_, { woId }) => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrderDetail", woId] });
+      successAction?.();
     },
   });
 
@@ -334,32 +158,100 @@ export function useSuspendWorkOrderMutation({
 }
 
 // ============================================================
-// FINISH WORK ORDER
+// FINISH — POST /admin/work-orders/{id}/finish
+// Return: finishWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
-export function useFinishWorkOrderMutation({
-  successAction,
-}: {
-  successAction: () => void;
-}) {
+export function useFinishWorkOrderMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const finishWorkOrderMutation = useMutation({
     mutationFn: (woId: string) =>
-      baseFetch<ApiResponse<null>>({
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/finish`,
-        options: { showError: false },
+        options: { showError: true },
       }),
-
-    onSuccess: (data, woId) => {
-      if (data?.statusCode === 200) {
-        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-        queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
-        successAction();
-      }
+    onSuccess: (_, woId) => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["adminWorkOrderDetail", woId] });
+      successAction?.();
     },
   });
 
   return { finishWorkOrderMutation };
+}
+
+// ============================================================
+// useWorkOrderFilter — dipakai di work_order/index.tsx
+// ============================================================
+
+export type WOTabKey =
+  | "semua"
+  | "dibuat"
+  | "sedang_dikerjakan"
+  | "menunggu_persetujuan"
+  | "selesai";
+
+export function useWorkOrderFilter() {
+  const [search, setSearch]       = useState("");
+  const [activeTab, setActiveTab] = useState<WOTabKey>("semua");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { workOrders, isLoading, refetch } = useGetAllWorkOrders();
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  const countByStatus = useMemo(() => ({
+    semua:               workOrders.length,
+    dibuat:              workOrders.filter(w => w.status === "dibuat").length,
+    sedang_dikerjakan:   workOrders.filter(w => w.status === "sedang_dikerjakan").length,
+    menunggu_persetujuan:workOrders.filter(w => w.status === "menunggu_persetujuan").length,
+    selesai:             workOrders.filter(w => w.status === "selesai" || w.status === "lunas").length,
+  }), [workOrders]);
+
+  const summaryCount = useMemo(() => ({
+    total:    workOrders.length,
+    dikerjakan: countByStatus.sedang_dikerjakan,
+    suspend:  countByStatus.menunggu_persetujuan,
+    selesai:  countByStatus.selesai,
+  }), [workOrders, countByStatus]);
+
+  const filtered = useMemo(() => {
+    let result = workOrders;
+
+    if (activeTab !== "semua") {
+      if (activeTab === "selesai") {
+        result = result.filter(w => w.status === "selesai" || w.status === "lunas");
+      } else {
+        result = result.filter(w => w.status === activeTab);
+      }
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(w =>
+        w.nomor_wo?.toLowerCase().includes(q) ||
+        w.kendaraan?.nomor_polisi?.toLowerCase().includes(q) ||
+        w.kendaraan?.merek?.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [workOrders, activeTab, search]);
+
+  return {
+    search, setSearch,
+    activeTab, setActiveTab,
+    refreshing,
+    filtered,
+    countByStatus,
+    summaryCount,
+    isLoading,
+    handleRefresh,
+  };
 }

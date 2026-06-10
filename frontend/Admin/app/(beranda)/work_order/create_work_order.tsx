@@ -1,33 +1,31 @@
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
+  KeyboardAvoidingView,
   Modal,
   FlatList,
 } from "react-native";
 import { router } from "expo-router";
-import { useState, useMemo } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { useCreateWorkOrderMutation } from "../../../src/hooks/work_order.hooks";
 import {
-  useCreateWorkOrderMutation,
   useGetAllCustomers,
   useGetAllKendaraan,
   useGetAllMekanik,
-  CreateWorkOrderPayload,
-  CustomerOption,
-  KendaraanOption,
-  MekanikOption,
-} from "../../../src/hooks/work_order.hooks";
+  type CustomerOption,
+  type KendaraanOption,
+  type MekanikOption,
+} from "../../../src/hooks/customer_kendaraan.hooks";
+import type { WorkOrderRequest } from "../../../src/@types/work_order.types";
 
-// ============================================================
-// KOMPONEN DROPDOWN GENERIC
-// ============================================================
+// ── Generic Dropdown ──────────────────────────────────────────────────────────
 
 interface DropdownItem {
   value: string;
@@ -35,13 +33,14 @@ interface DropdownItem {
   sublabel?: string;
 }
 
-function DropdownField({
+function Dropdown({
   label,
   required,
   placeholder,
   selected,
   items,
   isLoading,
+  disabled,
   onSelect,
   onClear,
   error,
@@ -52,6 +51,7 @@ function DropdownField({
   selected: DropdownItem | null;
   items: DropdownItem[];
   isLoading?: boolean;
+  disabled?: boolean;
   onSelect: (item: DropdownItem) => void;
   onClear?: () => void;
   error?: string;
@@ -60,141 +60,151 @@ function DropdownField({
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
     const q = search.toLowerCase();
-    return items.filter(
-      (i) =>
-        i.label.toLowerCase().includes(q) ||
-        i.sublabel?.toLowerCase().includes(q)
-    );
+    return q
+      ? items.filter(
+          (i) =>
+            i.label.toLowerCase().includes(q) ||
+            (i.sublabel ?? "").toLowerCase().includes(q)
+        )
+      : items;
   }, [items, search]);
 
   return (
-    <View style={ddStyles.wrapper}>
-      <Text style={ddStyles.label}>
+    <View style={dd.wrapper}>
+      <Text style={dd.label}>
         {label}
-        {required && <Text style={ddStyles.required}> *</Text>}
+        {required && <Text style={{ color: "#EF4444" }}> *</Text>}
       </Text>
 
       <TouchableOpacity
-        style={[ddStyles.trigger, error ? ddStyles.triggerError : null]}
-        onPress={() => setOpen(true)}
+        style={[
+          dd.trigger,
+          error && dd.triggerError,
+          disabled && dd.triggerDisabled,
+        ]}
+        onPress={() => !disabled && setOpen(true)}
         activeOpacity={0.8}
       >
         {isLoading ? (
-          <ActivityIndicator size="small" color="#9CA3AF" />
+          <ActivityIndicator size="small" color="#9CA3AF" style={{ flex: 1 }} />
         ) : selected ? (
-          <View style={ddStyles.selectedContent}>
-            <View style={{ flex: 1 }}>
-              <Text style={ddStyles.selectedLabel}>{selected.label}</Text>
-              {selected.sublabel ? (
-                <Text style={ddStyles.selectedSublabel}>
-                  {selected.sublabel}
-                </Text>
-              ) : null}
-            </View>
-            {onClear && (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onClear();
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-              </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={dd.selectedLabel} numberOfLines={1}>
+              {selected.label}
+            </Text>
+            {selected.sublabel && (
+              <Text style={dd.selectedSub}>{selected.sublabel}</Text>
             )}
           </View>
         ) : (
-          <Text style={ddStyles.placeholder}>{placeholder}</Text>
+          <Text style={dd.placeholder}>{placeholder}</Text>
         )}
-        {!selected && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {selected && onClear && (
+            <TouchableOpacity
+              onPress={onClear}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close-circle" size={17} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
-        )}
+        </View>
       </TouchableOpacity>
 
-      {error ? <Text style={ddStyles.errorText}>{error}</Text> : null}
-
-      {/* Modal Picker */}
-      <Modal visible={open} transparent animationType="slide">
-        <View style={ddStyles.modalOverlay}>
-          <View style={ddStyles.modalSheet}>
-            <View style={ddStyles.modalHandle} />
-            <Text style={ddStyles.modalTitle}>Pilih {label}</Text>
-
-            <View style={ddStyles.searchBox}>
+      {error && <Text style={dd.errorText}>{error}</Text>}
+      <Modal visible={open} transparent animationType="none">
+        <View style={dd.overlay} />
+      </Modal>
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <View style={dd.sheet}>
+            <View style={dd.handle} />
+            <Text style={dd.sheetTitle}>Pilih {label}</Text>
+            <View style={dd.searchBox}>
               <Ionicons name="search-outline" size={15} color="#9CA3AF" />
               <TextInput
-                style={ddStyles.searchInput}
-                placeholder={`Cari ${label.toLowerCase()}...`}
-                placeholderTextColor="#9CA3AF"
+                style={dd.searchInput}
                 value={search}
                 onChangeText={setSearch}
+                placeholder={`Cari ${label.toLowerCase()}...`}
+                placeholderTextColor="#9CA3AF"
                 autoFocus
               />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch("")}>
+                  <Ionicons name="close-circle" size={15} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
             </View>
-
             {filtered.length === 0 ? (
-              <View style={ddStyles.emptyBox}>
+              <View style={dd.empty}>
                 <Ionicons name="search-outline" size={32} color="#D1D5DB" />
-                <Text style={ddStyles.emptyText}>Tidak ada hasil</Text>
+                <Text style={dd.emptyText}>Tidak ada hasil</Text>
               </View>
             ) : (
               <FlatList
                 data={filtered}
                 keyExtractor={(i) => i.value}
                 style={{ maxHeight: 340 }}
-                renderItem={({ item }) => {
-                  const isSelected = selected?.value === item.value;
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        ddStyles.optionItem,
-                        isSelected && ddStyles.optionItemSelected,
-                      ]}
-                      onPress={() => {
-                        onSelect(item);
-                        setSearch("");
-                        setOpen(false);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            ddStyles.optionLabel,
-                            isSelected && ddStyles.optionLabelSelected,
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        {item.sublabel ? (
-                          <Text style={ddStyles.optionSublabel}>
-                            {item.sublabel}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {isSelected && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={18}
-                          color="#2563EB"
-                        />
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={() => (
+                  <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
+                )}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      dd.option,
+                      selected?.value === item.value && dd.optionActive,
+                    ]}
+                    onPress={() => {
+                      onSelect(item);
+                      setSearch("");
+                      setOpen(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          dd.optionLabel,
+                          selected?.value === item.value && {
+                            color: "#2563EB",
+                            fontWeight: "600",
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {item.sublabel && (
+                        <Text style={dd.optionSub}>{item.sublabel}</Text>
                       )}
-                    </TouchableOpacity>
-                  );
-                }}
+                    </View>
+                    {selected?.value === item.value && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color="#2563EB"
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
               />
             )}
-
             <TouchableOpacity
-              style={ddStyles.cancelBtn}
+              style={dd.closeBtn}
               onPress={() => {
                 setSearch("");
                 setOpen(false);
               }}
             >
-              <Text style={ddStyles.cancelText}>Tutup</Text>
+              <Text style={dd.closeBtnText}>Tutup</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -203,14 +213,13 @@ function DropdownField({
   );
 }
 
-const ddStyles = StyleSheet.create({
-  wrapper: { marginBottom: 16 },
+const dd = StyleSheet.create({
+  wrapper: { marginBottom: 14 },
   label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 },
-  required: { color: "#EF4444" },
   trigger: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 10,
@@ -220,31 +229,24 @@ const ddStyles = StyleSheet.create({
     gap: 8,
   },
   triggerError: { borderColor: "#EF4444", backgroundColor: "#FFF5F5" },
-  selectedContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  triggerDisabled: { backgroundColor: "#F9FAFB", opacity: 0.6 },
   selectedLabel: { fontSize: 14, color: "#111827", fontWeight: "500" },
-  selectedSublabel: { fontSize: 11, color: "#6B7280", marginTop: 1 },
+  selectedSub: { fontSize: 11, color: "#6B7280", marginTop: 1 },
   placeholder: { flex: 1, fontSize: 14, color: "#9CA3AF" },
   errorText: { fontSize: 11, color: "#EF4444", marginTop: 4 },
-
-  // Modal
-  modalOverlay: {
+  overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
   },
-  modalSheet: {
-    backgroundColor: "#FFFFFF",
+  sheet: {
+    backgroundColor: "#FFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
     paddingBottom: Platform.OS === "ios" ? 36 : 20,
   },
-  modalHandle: {
+  handle: {
     width: 40,
     height: 4,
     borderRadius: 2,
@@ -252,7 +254,7 @@ const ddStyles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 14,
   },
-  modalTitle: {
+  sheetTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#111827",
@@ -271,25 +273,22 @@ const ddStyles = StyleSheet.create({
     marginBottom: 8,
   },
   searchInput: { flex: 1, fontSize: 14, color: "#111827" },
-  optionItem: {
+  option: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
-  optionItemSelected: {
+  optionActive: {
     backgroundColor: "#EFF6FF",
     borderRadius: 8,
     paddingHorizontal: 8,
   },
   optionLabel: { fontSize: 14, color: "#1F2937" },
-  optionLabelSelected: { color: "#2563EB", fontWeight: "600" },
-  optionSublabel: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
-  emptyBox: { alignItems: "center", paddingVertical: 32, gap: 8 },
+  optionSub: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  empty: { alignItems: "center", paddingVertical: 32, gap: 8 },
   emptyText: { fontSize: 13, color: "#9CA3AF" },
-  cancelBtn: {
+  closeBtn: {
     marginTop: 12,
     paddingVertical: 13,
     borderRadius: 12,
@@ -297,66 +296,12 @@ const ddStyles = StyleSheet.create({
     borderColor: "#E5E7EB",
     alignItems: "center",
   },
-  cancelText: { fontSize: 14, fontWeight: "600", color: "#6B7280" },
+  closeBtnText: { fontSize: 14, fontWeight: "600", color: "#6B7280" },
 });
 
-// ============================================================
-// KOMPONEN INLINE ERROR BANNER
-// ============================================================
-
-function ErrorBanner({
-  message,
-  onDismiss,
-}: {
-  message: string;
-  onDismiss: () => void;
-}) {
-  return (
-    <View style={errorBannerStyles.container}>
-      <Ionicons name="alert-circle" size={18} color="#DC2626" />
-      <Text style={errorBannerStyles.text} numberOfLines={3}>
-        {message}
-      </Text>
-      <TouchableOpacity
-        onPress={onDismiss}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="close" size={16} color="#DC2626" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const errorBannerStyles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 10,
-    padding: 12,
-    gap: 10,
-    marginBottom: 16,
-  },
-  text: {
-    flex: 1,
-    fontSize: 13,
-    color: "#DC2626",
-    lineHeight: 18,
-  },
-});
-
-// ============================================================
-// SCREEN UTAMA
-// ============================================================
-
-interface FormErrors {
-  kendaraan_id?: string;
-}
+// ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function CreateWorkOrderScreen() {
-  // State selections
   const [selectedCustomer, setSelectedCustomer] =
     useState<CustomerOption | null>(null);
   const [selectedKendaraan, setSelectedKendaraan] =
@@ -365,144 +310,122 @@ export default function CreateWorkOrderScreen() {
     null
   );
   const [catatanAwal, setCatatanAwal] = useState("");
-  const [estimasiBiaya, setEstimasiBiaya] = useState("");
-
-  // Error state
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [estimasi, setEstimasi] = useState("");
+  const [errors, setErrors] = useState<{ kendaraan_id?: string }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Data dropdown
   const { customers, isLoading: loadingCustomers } = useGetAllCustomers();
   const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan();
   const { mekanikList, isLoading: loadingMekanik } = useGetAllMekanik();
 
-  // Mapping ke DropdownItem
+  // Filter kendaraan by customer kalau sudah dipilih
+  const filteredKendaraan = useMemo(
+    () =>
+      selectedCustomer
+        ? kendaraanList.filter((k) => k.user_id === selectedCustomer.user_id)
+        : kendaraanList,
+    [kendaraanList, selectedCustomer]
+  );
+
   const customerItems = useMemo<DropdownItem[]>(
     () =>
       customers.map((c) => ({
         value: c.user_id,
         label: c.nama,
-        sublabel: c.email,
+        sublabel: c.telepon ?? c.email,
       })),
     [customers]
   );
 
-  // Kendaraan: kalau customer sudah dipilih, filter by user_id
-  const kendaraanItems = useMemo<DropdownItem[]>(() => {
-    const list = selectedCustomer
-      ? kendaraanList.filter((k: any) => k.user_id === selectedCustomer.user_id)
-      : kendaraanList;
-    return list.map((k) => ({
-      value: k.kendaraan_id,
-      label: `${k.merek} ${k.model}`,
-      sublabel: k.nomor_polisi,
-    }));
-  }, [kendaraanList, selectedCustomer]);
+  const kendaraanItems = useMemo<DropdownItem[]>(
+    () =>
+      filteredKendaraan.map((k) => ({
+        value: k.kendaraan_id,
+        label: `${k.merek} ${k.model} (${k.tahun})`,
+        sublabel: k.nomor_polisi,
+      })),
+    [filteredKendaraan]
+  );
 
   const mekanikItems = useMemo<DropdownItem[]>(
     () =>
       mekanikList.map((m) => ({
         value: m.mekanik_id,
         label: m.nama,
+        sublabel: m.keahlian ?? undefined,
       })),
     [mekanikList]
   );
 
-  const { createWorkOrderMutation } = useCreateWorkOrderMutation({
-    successAction: (woId) => {
-      router.replace(
-        `/(beranda)/work_order/work_order_detail?id=${woId}` as any
-      );
-    },
-    onError: (msg) => setSubmitError(msg),
+  const { createMutation } = useCreateWorkOrderMutation({
+    successAction: (woId) =>
+      router.replace(`/(beranda)/work_order/work_order_detail?id=${woId}` as any),
   });
-
-  const validate = (): boolean => {
-    const errors: FormErrors = {};
-    if (!selectedKendaraan) {
-      errors.kendaraan_id = "Kendaraan wajib dipilih";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   const handleSubmit = () => {
     setSubmitError(null);
-    if (!validate()) return;
+    if (!selectedKendaraan) {
+      setErrors({ kendaraan_id: "Kendaraan wajib dipilih" });
+      return;
+    }
+    setErrors({});
 
-    const payload: CreateWorkOrderPayload = {
-      kendaraan_id: selectedKendaraan!.value,
+    const payload: WorkOrderRequest = {
+      kendaraan_id: selectedKendaraan.kendaraan_id,
+      ...(selectedCustomer && { user_id: selectedCustomer.user_id }),
+      ...(selectedMekanik && { mekanik_id: selectedMekanik.mekanik_id }),
+      ...(catatanAwal.trim() && { deskripsi_kerusakan: catatanAwal.trim() }),
+      ...(estimasi.trim() && { estimasi_biaya: parseFloat(estimasi) }),
     };
 
-    if (selectedCustomer) payload.user_id = selectedCustomer.value;
-    if (selectedMekanik) payload.mekanik_id = selectedMekanik.value;
-    if (catatanAwal.trim()) payload.catatan_awal = catatanAwal.trim();
-    if (estimasiBiaya.trim())
-      payload.estimasi_biaya = parseInt(estimasiBiaya, 10);
-
-    createWorkOrderMutation.mutate(payload);
+    createMutation.mutate(payload);
   };
-
-  const isLoading = createWorkOrderMutation.isPending;
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Buat Work Order</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
+      <View style={s.container}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Error Banner */}
           {submitError && (
-            <ErrorBanner
-              message={submitError}
-              onDismiss={() => setSubmitError(null)}
-            />
+            <View style={s.errorBanner}>
+              <Ionicons name="alert-circle" size={16} color="#DC2626" />
+              <Text style={s.errorBannerText}>{submitError}</Text>
+              <TouchableOpacity onPress={() => setSubmitError(null)}>
+                <Ionicons name="close" size={16} color="#DC2626" />
+              </TouchableOpacity>
+            </View>
           )}
 
-          {/* Section: Kendaraan & Customer */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="car-outline" size={13} color="#2563EB" />{" "}
-              KENDARAAN
-            </Text>
+          {/* Section Kendaraan */}
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>🚗 KENDARAAN</Text>
 
-            <DropdownField
+            <Dropdown
               label="Customer"
               placeholder="Pilih customer (opsional)"
+              items={customerItems}
+              isLoading={loadingCustomers}
               selected={
                 selectedCustomer
                   ? {
                       value: selectedCustomer.user_id,
                       label: selectedCustomer.nama,
-                      sublabel: selectedCustomer.email,
+                      sublabel:
+                        selectedCustomer.telepon ?? selectedCustomer.email,
                     }
                   : null
               }
-              items={customerItems}
-              isLoading={loadingCustomers}
               onSelect={(item) => {
-                const found = customers.find((c) => c.user_id === item.value);
-                setSelectedCustomer(found ?? null);
-                // Reset kendaraan kalau customer berganti
-                setSelectedKendaraan(null);
+                const c =
+                  customers.find((c) => c.user_id === item.value) ?? null;
+                setSelectedCustomer(c);
+                setSelectedKendaraan(null); // reset kendaraan saat ganti customer
               }}
               onClear={() => {
                 setSelectedCustomer(null);
@@ -510,10 +433,16 @@ export default function CreateWorkOrderScreen() {
               }}
             />
 
-            <DropdownField
+            <Dropdown
               label="Kendaraan"
               required
-              placeholder="Pilih kendaraan"
+              placeholder={
+                selectedCustomer
+                  ? "Pilih kendaraan customer..."
+                  : "Pilih kendaraan"
+              }
+              items={kendaraanItems}
+              isLoading={loadingKendaraan}
               selected={
                 selectedKendaraan
                   ? {
@@ -523,30 +452,27 @@ export default function CreateWorkOrderScreen() {
                     }
                   : null
               }
-              items={kendaraanItems}
-              isLoading={loadingKendaraan}
               onSelect={(item) => {
-                const found = kendaraanList.find(
-                  (k) => k.kendaraan_id === item.value
+                setSelectedKendaraan(
+                  kendaraanList.find((k) => k.kendaraan_id === item.value) ??
+                    null
                 );
-                setSelectedKendaraan(found ?? null);
-                setFormErrors((prev) => ({ ...prev, kendaraan_id: undefined }));
+                setErrors({});
               }}
               onClear={() => setSelectedKendaraan(null)}
-              error={formErrors.kendaraan_id}
+              error={errors.kendaraan_id}
             />
           </View>
 
-          {/* Section: Mekanik & Deskripsi */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="build-outline" size={13} color="#2563EB" />{" "}
-              PENGERJAAN
-            </Text>
+          {/* Section Pengerjaan */}
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>🔧 PENGERJAAN</Text>
 
-            <DropdownField
+            <Dropdown
               label="Mekanik"
               placeholder="Pilih mekanik (opsional)"
+              items={mekanikItems}
+              isLoading={loadingMekanik}
               selected={
                 selectedMekanik
                   ? {
@@ -555,24 +481,21 @@ export default function CreateWorkOrderScreen() {
                     }
                   : null
               }
-              items={mekanikItems}
-              isLoading={loadingMekanik}
-              onSelect={(item) => {
-                const found = mekanikList.find(
-                  (m) => m.mekanik_id === item.value
-                );
-                setSelectedMekanik(found ?? null);
-              }}
+              onSelect={(item) =>
+                setSelectedMekanik(
+                  mekanikList.find((m) => m.mekanik_id === item.value) ?? null
+                )
+              }
               onClear={() => setSelectedMekanik(null)}
             />
 
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Catatan Awal</Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Catatan / Keluhan Awal</Text>
               <TextInput
-                style={[styles.input, styles.inputMultiline]}
+                style={[s.input, s.textarea]}
                 value={catatanAwal}
                 onChangeText={setCatatanAwal}
-                placeholder="Jelaskan keluhan / kerusakan kendaraan..."
+                placeholder="Jelaskan keluhan atau kerusakan kendaraan..."
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={4}
@@ -580,50 +503,51 @@ export default function CreateWorkOrderScreen() {
               />
             </View>
 
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Estimasi Biaya</Text>
-              <TextInput
-                style={styles.input}
-                value={estimasiBiaya}
-                onChangeText={setEstimasiBiaya}
-                placeholder="Contoh: 150000"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-              />
-              <Text style={styles.fieldHint}>
-                Dalam Rupiah, tanpa titik/koma
-              </Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Estimasi Biaya</Text>
+              <View style={s.currencyRow}>
+                <Text style={s.currencyPrefix}>Rp</Text>
+                <TextInput
+                  style={[s.input, { flex: 1 }]}
+                  value={estimasi}
+                  onChangeText={(v) => setEstimasi(v.replace(/\D/g, ""))}
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+              </View>
+              <Text style={s.hint}>Dalam Rupiah, tanpa titik/koma</Text>
             </View>
           </View>
 
           <View style={{ height: 20 }} />
         </ScrollView>
 
-        {/* Footer CTA */}
-        <View style={styles.footer}>
+        {/* Footer */}
+        <View style={s.footer}>
           <TouchableOpacity
-            style={styles.cancelBtn}
+            style={s.cancelBtn}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <Text style={styles.cancelText}>Batal</Text>
+            <Text style={s.cancelText}>Batal</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
+            style={[s.submitBtn, createMutation.isPending && { opacity: 0.6 }]}
             onPress={handleSubmit}
-            disabled={isLoading}
+            disabled={createMutation.isPending}
             activeOpacity={0.85}
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+            {createMutation.isPending ? (
+              <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>
                 <Ionicons
                   name="checkmark-circle-outline"
                   size={18}
-                  color="#FFFFFF"
+                  color="#FFF"
                 />
-                <Text style={styles.submitText}>Buat Work Order</Text>
+                <Text style={s.submitText}>Buat Work Order</Text>
               </>
             )}
           </TouchableOpacity>
@@ -633,14 +557,14 @@ export default function CreateWorkOrderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#2563EB",
-    paddingTop: 52,
+    paddingTop: Platform.OS === "ios" ? 52 : 40,
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
@@ -652,10 +576,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
-  scrollContent: { padding: 16 },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFF" },
+  scroll: { padding: 16 },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+    marginBottom: 14,
+  },
+  errorBannerText: { flex: 1, fontSize: 13, color: "#DC2626", lineHeight: 18 },
   section: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderRadius: 14,
     padding: 16,
     marginBottom: 14,
@@ -672,16 +608,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     letterSpacing: 0.6,
   },
-  fieldWrapper: { marginBottom: 16 },
+  field: { marginBottom: 14 },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
     color: "#374151",
     marginBottom: 6,
   },
-  fieldHint: { fontSize: 11, color: "#9CA3AF", marginTop: 4 },
+  hint: { fontSize: 11, color: "#9CA3AF", marginTop: 4 },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 10,
@@ -690,13 +626,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#111827",
   },
-  inputMultiline: { minHeight: 88, paddingTop: 11 },
+  textarea: { minHeight: 90, paddingTop: 11, textAlignVertical: "top" },
+  currencyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  currencyPrefix: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: "#F3F4F6",
+  },
   footer: {
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 14,
     paddingBottom: Platform.OS === "ios" ? 28 : 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderTopWidth: 1,
     borderTopColor: "#F3F4F6",
     gap: 12,
@@ -720,6 +668,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 7,
   },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  submitText: { fontSize: 15, fontWeight: "700", color: "#FFF" },
 });
