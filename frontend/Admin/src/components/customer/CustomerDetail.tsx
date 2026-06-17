@@ -1,10 +1,33 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useGetAllKendaraan } from '../../hooks/work_order.hooks';
+import { useGetAllKendaraan, useGetAllWorkOrders } from '../../hooks/work_order.hooks';
+
+// Fungsi bantuan untuk format Rupiah yang tahan banting (anti Rp 0)
+const formatRupiah = (angka: number | string | undefined | null) => {
+  if (!angka) return 'Rp 0';
+  const numericValue = typeof angka === 'string' ? parseFloat(angka) : Number(angka);
+  if (isNaN(numericValue)) return 'Rp 0';
+  return 'Rp ' + numericValue.toLocaleString('id-ID');
+};
+
+// Fungsi bantuan untuk format Tanggal
+const formatDate = (dateString: string) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+};
 
 export default function CustomerDetail({ customer, onBack }: any) {
-  const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan(customer.user_id);
+  // Ambil data kendaraan & filter KHUSUS untuk customer ini
+  const { kendaraanList, isLoading: loadingKendaraan } = useGetAllKendaraan();
+  const customerKendaraan = kendaraanList?.filter((k: any) => k.user_id === customer.user_id) || [];
+
+  // Ambil data histori WO & filter KHUSUS untuk customer ini
+  const { workOrders, isLoading: loadingWO } = useGetAllWorkOrders();
+  const historyWO = workOrders?.filter((wo: any) => 
+    wo.user_id === customer.user_id || wo.user?.user_id === customer.user_id
+  ) || [];
 
   return (
     <View style={styles.container}>
@@ -30,11 +53,11 @@ export default function CustomerDetail({ customer, onBack }: any) {
           <View style={styles.detailHeaderBadge}>
             <Ionicons name="car-outline" size={14} color="#fff" />
             <Text style={styles.detailBadgeText}>
-              {loadingKendaraan ? '...' : kendaraanList.length} Kendaraan
+              {loadingKendaraan ? '...' : customerKendaraan.length} Kendaraan
             </Text>
           </View>
           <View style={styles.detailHeaderBadge}>
-            <Text style={styles.detailBadgeText}># {customer.wo} Riwayat WO</Text>
+            <Text style={styles.detailBadgeText}># {loadingWO ? '...' : historyWO.length} Riwayat WO</Text>
           </View>
         </ScrollView>
       </View>
@@ -69,17 +92,20 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <View style={styles.blueBarIndicator} />
             <Text style={styles.sectionHeadingTitle}>Kendaraan</Text>
           </View>
+          <TouchableOpacity>
+            <Text style={styles.seeAllText}>+ Tambah</Text>
+          </TouchableOpacity>
         </View>
 
         {loadingKendaraan ? (
           <ActivityIndicator size="small" color="#1a73e8" style={{ marginBottom: 16 }} />
-        ) : kendaraanList.length === 0 ? (
+        ) : customerKendaraan.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="car-outline" size={32} color="#ccc" />
             <Text style={styles.emptyText}>Belum ada kendaraan</Text>
           </View>
         ) : (
-          kendaraanList.map((k) => (
+          customerKendaraan.map((k: any) => (
             <View key={k.kendaraan_id} style={styles.vehicleCardItem}>
               <View style={styles.vehicleIconBox}>
                 <Ionicons name="car-outline" size={24} color="#1a73e8" />
@@ -95,6 +121,7 @@ export default function CustomerDetail({ customer, onBack }: any) {
                 </View>
                 <View style={styles.vehicleMetaRow}>
                   <Text style={styles.plateNumberBadge}>{k.nomor_polisi}</Text>
+                  {k.warna ? <Text style={styles.colorText}>{k.warna}</Text> : null}
                 </View>
               </View>
             </View>
@@ -107,12 +134,52 @@ export default function CustomerDetail({ customer, onBack }: any) {
             <View style={styles.greenBarIndicator} />
             <Text style={styles.sectionHeadingTitle}>Histori Servis</Text>
           </View>
+          <TouchableOpacity>
+            <Text style={styles.seeAllText}>Semua &gt;</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.emptyCard}>
-          <Ionicons name="receipt-outline" size={32} color="#ccc" />
-          <Text style={styles.emptyText}>Belum ada histori</Text>
-        </View>
+        {loadingWO ? (
+          <ActivityIndicator size="small" color="#1ea446" style={{ marginBottom: 16 }} />
+        ) : historyWO.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="receipt-outline" size={32} color="#ccc" />
+            <Text style={styles.emptyText}>Belum ada histori</Text>
+          </View>
+        ) : (
+          historyWO.map((wo: any) => (
+            <View key={wo.wo_id} style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <View style={styles.woBadge}>
+                  <Text style={styles.woBadgeText}>{wo.nomor_wo}</Text>
+                </View>
+                <View style={[styles.statusBadge, wo.status === 'selesai' || wo.status === 'lunas' ? styles.statusSuccess : styles.statusPending]}>
+                  <Ionicons 
+                    name={wo.status === 'selesai' || wo.status === 'lunas' ? "checkmark-circle-outline" : "time-outline"} 
+                    size={14} 
+                    color={wo.status === 'selesai' || wo.status === 'lunas' ? "#16A34A" : "#EA580C"} 
+                  />
+                  <Text style={[styles.statusText, wo.status === 'selesai' || wo.status === 'lunas' ? styles.statusTextSuccess : styles.statusTextPending]}>
+                    {wo.status === 'selesai' || wo.status === 'lunas' ? 'Selesai' : 'Diproses'}
+                  </Text>
+                </View>
+              </View>
+              
+              <Text style={styles.historyTitle} numberOfLines={1}>
+                {wo.keluhan || `${wo.kendaraan?.merek} ${wo.kendaraan?.model}`}
+              </Text>
+              
+              <View style={styles.historyFooter}>
+                <View style={styles.dateRow}>
+                  <Ionicons name="calendar-outline" size={14} color="#999" />
+                  <Text style={styles.dateText}>{formatDate(wo.created_at)}</Text>
+                </View>
+                {/* PERUBAHAN NOMINAL HARGA ADA DI BARIS BAWAH INI */}
+                <Text style={styles.priceText}>{formatRupiah(wo.estimasi_biaya || wo.biaya_jasa)}</Text>
+              </View>
+            </View>
+          ))
+        )}
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -145,7 +212,10 @@ const styles = StyleSheet.create({
   blueBarIndicator: { width: 4, height: 18, backgroundColor: '#1a73e8', borderRadius: 2, marginRight: 8 },
   greenBarIndicator: { width: 4, height: 18, backgroundColor: '#1ea446', borderRadius: 2, marginRight: 8 },
   sectionHeadingTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
-  vehicleCardItem: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 12, alignItems: 'center' },
+  seeAllText: { color: '#1a73e8', fontSize: 13, fontWeight: '600' },
+  
+  /* Vehicle Styles */
+  vehicleCardItem: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#f0f0f0' },
   vehicleIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#e8f0fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   vehicleNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   vehicleModelName: { fontSize: 15, fontWeight: 'bold', color: '#333' },
@@ -153,6 +223,25 @@ const styles = StyleSheet.create({
   yearBadgeText: { color: '#1a73e8', fontSize: 11, fontWeight: 'bold' },
   vehicleMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   plateNumberBadge: { backgroundColor: '#222', color: '#fff', fontSize: 11, fontWeight: 'bold', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 8, letterSpacing: 0.5 },
+  colorText: { fontSize: 12, color: '#888' },
+
+  /* History Styles */
+  historyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#1ea446' },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  woBadge: { backgroundColor: '#e8f0fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  woBadgeText: { color: '#1a73e8', fontSize: 12, fontWeight: 'bold' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  statusSuccess: { backgroundColor: '#dcfce7' },
+  statusPending: { backgroundColor: '#ffedd5' },
+  statusText: { fontSize: 12, fontWeight: '600', marginLeft: 4 },
+  statusTextSuccess: { color: '#16A34A' },
+  statusTextPending: { color: '#EA580C' },
+  historyTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+  historyFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dateRow: { flexDirection: 'row', alignItems: 'center' },
+  dateText: { color: '#888', fontSize: 13, marginLeft: 6 },
+  priceText: { color: '#1a73e8', fontSize: 16, fontWeight: 'bold' },
+
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, marginBottom: 12, alignItems: 'center' },
   emptyText: { color: '#bbb', fontSize: 14, marginTop: 8 },
 });
