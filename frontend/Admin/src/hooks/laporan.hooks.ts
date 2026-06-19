@@ -1,38 +1,43 @@
-import { useState, useCallback } from "react";
 import { baseFetch } from "../utils/baseFetch";
-import { LaporanTransaksi, LaporanFilter } from "../@types/laporan.types";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import type { TransactionReport } from "../@types/laporan.types";
 
-export const useLaporan = () => {
-  const [data, setData] = useState<LaporanTransaksi | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// ============================================================
+// GET REPORT — GET /admin/reports/transactions?from=&to=
+// ============================================================
 
-  const fetchLaporan = useCallback(async (filter: LaporanFilter) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await baseFetch<LaporanTransaksi>({
-        url: "/reports/transactions",
+export function useGetTransactionReport(from: string, to: string) {
+  const enabled = !!from && !!to;
+
+  const { data, isLoading, isPending, refetch } = useQuery<TransactionReport>({
+    queryKey: ["transactionReport", from, to],
+    enabled,
+
+    queryFn: () =>
+      baseFetch<TransactionReport>({
         method: "GET",
-        params: {
-          start_date: filter.start_date,
-          end_date: filter.end_date,
-        },
+        url: "/admin/reports/transactions",
+        params: { from, to },
         options: { showError: false },
-      });
-      if (result) setData(result);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "Gagal memuat laporan";
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      }).then((res) => {
+        if (!res) throw new Error("Gagal mengambil laporan");
+        return res;
+      }),
 
-  const reset = useCallback(() => {
-    setData(null);
-    setError(null);
-  }, []);
+    retry: false,
+    staleTime: 2 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
 
-  return { data, loading, error, fetchLaporan, reset };
-};
+  const report = useMemo(() => data ?? null, [data]);
+
+  // Hitung rata-rata per transaksi
+  const rataRata = useMemo(() => {
+    if (!report || report.jumlah_transaksi === 0) return 0;
+    return report.total_pendapatan / report.jumlah_transaksi;
+  }, [report]);
+
+  return { report, rataRata, isLoading, isPending, refetch };
+}

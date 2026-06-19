@@ -1,40 +1,9 @@
 import { baseFetch } from "../utils/baseFetch";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface CustomerOption {
-  user_id: string;
-  nama: string;
-  email: string;
-  telepon: string | null;
-  role: string;
-  created_at: string;
-  jumlah_kendaraan?: number;
-}
-
-export interface KendaraanOption {
-  kendaraan_id: string;
-  user_id: string | null;
-  merek: string;
-  model: string;
-  tahun: number;
-  nomor_polisi: string;
-  warna: string | null;
-  nama_pemilik?: string | null;
-}
-
-export interface MekanikOption {
-  mekanik_id: string;
-  nama: string;
-  telepon: string;
-  keahlian: string | null;
-  status: "tersedia" | "tidak_tersedia";
-}
+import type { Customer, CustomerRequest } from "../@types/customer.types";
 
 // ── GET ALL CUSTOMERS — GET /admin/customers ──────────────────────────────────
-
 export function useGetAllCustomers() {
   const { data, isLoading, refetch } = useQuery<CustomerOption[]>({
     queryKey: ["adminCustomers"],
@@ -50,9 +19,47 @@ export function useGetAllCustomers() {
   return { customers: useMemo(() => data ?? [], [data]), isLoading, refetch };
 }
 
-// ── GET ALL KENDARAAN — GET /admin/kendaraan ──────────────────────────────────
-// Handler: AdminCustomerHandler.GetAllKendaraan
+export function useCreateCustomerMutation({ onSuccess }: { onSuccess?: () => void } = {}) {
+  const queryClient = useQueryClient();
+ 
+  const createMutation = useMutation({
+    mutationFn: (payload: CustomerRequest) =>
+      baseFetch<Customer>({
+        method: "POST",
+        url: "/admin/customers",
+        payload,
+        options: { showError: true },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
+      onSuccess?.();
+    },
+  });
+ 
+  return { createMutation };
+}
 
+export function useUpdateCustomerMutation({ onSuccess }: { onSuccess?: () => void } = {}) {
+  const queryClient = useQueryClient();
+ 
+  const updateMutation = useMutation({
+    mutationFn: ({ userId, payload }: { userId: string; payload: CustomerRequest }) =>
+      baseFetch<{ message: string }>({
+        method: "PUT",
+        url: `/admin/customers/${userId}`,
+        payload,
+        options: { showError: true },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
+      onSuccess?.();
+    },
+  });
+ 
+  return { updateMutation };
+}
+
+// ── GET ALL KENDARAAN — GET /admin/kendaraan ──────────────────────────────────
 export function useGetAllKendaraan() {
   const { data, isLoading, refetch } = useQuery<KendaraanOption[]>({
     queryKey: ["adminKendaraan"],

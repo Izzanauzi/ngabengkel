@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DeleteModal from '../../../src/components/DeleteModal';
+import DeleteModal from '../../../src/components/mekanik/DeleteModal';
 import CustomerCard from '../../../src/components/customer/CustomerCard';
 import CustomerDetail from '../../../src/components/customer/CustomerDetail';
+import EditCustomerModal from "../../../src/components/customer/editCustomer";
 import AddCustomerModal from '../../../src/components/AddCustomerModal';
-import { useGetAllCustomers, useCreateCustomerMutation } from '../../../src/hooks/customer.hooks';
+import {
+  useGetAllCustomers,
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  useDeleteCustomerMutation,
+} from '../../../src/hooks/customer.hooks';
 import type { Customer } from '../../../src/@types/customer.types';
 
 const toCardFormat = (c: Customer) => ({
@@ -28,9 +34,13 @@ export default function CustomerScreen() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [selectedForDelete, setSelectedForDelete] = useState<any>(null);
   const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
 
   const { customers, isLoading } = useGetAllCustomers();
   const { createMutation } = useCreateCustomerMutation({ onSuccess: () => setAddModalVisible(false) });
+  const { updateMutation } = useUpdateCustomerMutation({
+    onSuccess: () => setEditingCustomer(null),
+  });
 
   const cardItems = customers.map(toCardFormat);
   const filteredItems = cardItems.filter(item =>
@@ -99,7 +109,7 @@ export default function CustomerScreen() {
               <CustomerCard
                 item={item}
                 onView={(data: any) => setSelectedCustomer(data)}
-                onEdit={(data: any) => console.log('Edit:', data)}
+                onEdit={(data: any) => setEditingCustomer(data)}
                 onDelete={(data: any) => setSelectedForDelete(data)}
               />
             )}
@@ -119,6 +129,14 @@ export default function CustomerScreen() {
         onClose={() => setAddModalVisible(false)}
         onSave={(data) => createMutation.mutate(data)}
         isLoading={createMutation.isPending}
+      />
+
+<EditCustomerModal
+        visible={!!editingCustomer}
+        customer={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSave={(userId, data) => updateMutation.mutate({ userId, payload: data })}
+        isLoading={updateMutation.isPending}
       />
 
       <DeleteModal
@@ -141,7 +159,7 @@ const styles = StyleSheet.create({
   content: { padding: 15, flex: 1, marginTop: -15, backgroundColor: '#f5f7fa', borderTopLeftRadius: 15, borderTopRightRadius: 15 },
   searchRow: { flexDirection: 'row', marginBottom: 15, alignItems: 'center' },
   searchContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 15, alignItems: 'center', height: 45, marginRight: 10 },
-  searchInput: { flex: 1, marginLeft: 10 },
+  searchInput: { flex: 1, marginLeft: 10, outlineStyle: 'none' },
   addBtnSmall: { backgroundColor: '#1a73e8', flexDirection: 'row', borderRadius: 8, paddingHorizontal: 15, height: 45, alignItems: 'center' },
   addBtnSmallText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
   fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1a73e8', flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30, elevation: 5 },

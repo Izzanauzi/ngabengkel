@@ -36,21 +36,16 @@ export default function RejectModal({
   React.useEffect(() => {
     if (!visible) { setAlasan(""); setAlasanError(""); }
   }, [visible]);
-
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-      statusBarTranslucent
+    <View
+      style={styles.overlay}
     >
-      {/* Overlay — full screen, pointer events agar bisa tap close */}
       <TouchableOpacity
-        style={styles.overlay}
+        style={StyleSheet.absoluteFillObject}
         activeOpacity={1}
         onPress={handleClose}
-      >
+      />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
@@ -61,7 +56,6 @@ export default function RejectModal({
             onPress={() => {}}
             style={styles.container}
           >
-            <View style={styles.handle} />
 
             <View style={styles.header}>
               <Text style={styles.title}>Tolak Booking</Text>
@@ -106,21 +100,16 @@ export default function RejectModal({
             </View>
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </TouchableOpacity>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Overlay full screen — pakai absolute + dimensi 100% agar tidak ikut lebar desktop wrapper
   overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+    zIndex: 999,
   },
   keyboardView: {
     justifyContent: "flex-end",
@@ -133,7 +122,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: Platform.OS === "ios" ? 36 : 24,
   },
-  // Drag handle indicator
   handle: {
     width: 40,
     height: 4,

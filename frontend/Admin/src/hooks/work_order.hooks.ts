@@ -224,9 +224,15 @@ export function useCreateWorkOrderMutation({
 }: UseCreateWorkOrderMutationProps) {
   const queryClient = useQueryClient();
 
-  const createMutation = useMutation({
-    mutationFn: (payload: WorkOrderRequest) =>
-      baseFetch<WorkOrder>({ ... }),
+  const createWorkOrderMutation = useMutation({
+    mutationFn: (payload: CreateWorkOrderPayload) =>
+      baseFetch<ApiResponse<WorkOrder>>({
+        method: "POST",
+        url: `/admin/work-orders`,
+        payload,
+        options: { showError: false },
+      }),
+
     onSuccess: (data) => {
       if (data?.statusCode === 200 || data?.statusCode === 201) {
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
@@ -242,7 +248,7 @@ export function useCreateWorkOrderMutation({
     },
   });
 
-  return { createMutation };
+  return { createWorkOrderMutation };
 }
 
 // ============================================================

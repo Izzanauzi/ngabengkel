@@ -106,11 +106,6 @@ export default function LoginPage() {
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.btnText}>Masuk</Text>}
         </TouchableOpacity>
-
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Belum punya akun? </Text>
-          <Link href="/(auth)/register"><Text style={styles.registerLink}>Daftar</Text></Link>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
