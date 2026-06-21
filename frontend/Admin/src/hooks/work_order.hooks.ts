@@ -1,7 +1,7 @@
 import { baseFetch } from "../utils/baseFetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
-import {
+import { useMemo, useState, useCallback } from "react";
+import type {
   WorkOrder,
   WorkOrderDetail,
   InvoiceData,
@@ -59,13 +59,13 @@ export function useGetAllWorkOrders() {
     queryFn: () =>
       baseFetch<WorkOrder[]>({
         method: "GET",
-        url: `/admin/work-orders`,
+        url: "/admin/work-orders",
         options: { showError: false },
       }).then((res) => res ?? []),
     retry: false,
-    staleTime: 0,
+    staleTime: 1 * 60 * 1000,
     refetchOnMount: true,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 
   const workOrders = useMemo<WorkOrder[]>(() => {
@@ -78,13 +78,12 @@ export function useGetAllWorkOrders() {
 }
 
 // ============================================================
-// GET WORK ORDER DETAIL BY ID
+// GET BY ID — GET /admin/work-orders/{id}
 // ============================================================
 
 export function useGetWorkOrderById(woId: string | undefined) {
   const { data, isLoading, refetch } = useQuery<WorkOrderDetail | null>({
     enabled: !!woId,
-    queryKey: ["getWorkOrderById", woId],
     queryFn: () =>
       baseFetch<WorkOrderDetail>({
         method: "GET",
@@ -92,7 +91,7 @@ export function useGetWorkOrderById(woId: string | undefined) {
         options: { showError: false },
       }).then((res) => res ?? null),
     retry: false,
-    staleTime: 0,
+    staleTime: 30 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
@@ -103,7 +102,7 @@ export function useGetWorkOrderById(woId: string | undefined) {
 }
 
 // ============================================================
-// DROPDOWN — GET ALL CUSTOMERS
+// CREATE — POST /admin/work-orders
 // ============================================================
 
 export function useGetAllCustomers() {
@@ -255,7 +254,8 @@ export function useCreateWorkOrderMutation({
 }
 
 // ============================================================
-// START WORK ORDER
+// START — POST /admin/work-orders/{id}/start
+// Return: startWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
 export function useStartWorkOrderMutation({
@@ -267,10 +267,10 @@ export function useStartWorkOrderMutation({
 
   const startWorkOrderMutation = useMutation({
     mutationFn: (woId: string) =>
-      baseFetch<ApiResponse<null>>({
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/start`,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: (data, woId) => {
@@ -286,7 +286,8 @@ export function useStartWorkOrderMutation({
 }
 
 // ============================================================
-// UPLOAD PROGRESS
+// UPLOAD PROGRESS — POST /admin/work-orders/{id}/progress
+// Return: uploadProgressMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
 interface UploadProgressPayload {
@@ -302,12 +303,15 @@ export function useUploadProgressMutation({
   const queryClient = useQueryClient();
 
   const uploadProgressMutation = useMutation({
-    mutationFn: ({ woId, payload }: UploadProgressPayload) =>
-      baseFetch<ApiResponse<null>>({
+    mutationFn: ({ woId, payload }: {
+      woId: string;
+      payload: { deskripsi: string; tipe?: string; foto_url?: string };
+    }) =>
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/progress`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: (data, { woId }) => {
@@ -323,7 +327,8 @@ export function useUploadProgressMutation({
 }
 
 // ============================================================
-// SUSPEND WORK ORDER
+// SUSPEND — POST /admin/work-orders/{id}/suspend
+// Return: suspendWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
 interface SuspendPayload {
@@ -339,12 +344,15 @@ export function useSuspendWorkOrderMutation({
   const queryClient = useQueryClient();
 
   const suspendWorkOrderMutation = useMutation({
-    mutationFn: ({ woId, payload }: SuspendPayload) =>
-      baseFetch<ApiResponse<null>>({
+    mutationFn: ({ woId, payload }: {
+      woId: string;
+      payload: { deskripsi: string; est_biaya_tambahan: number };
+    }) =>
+      baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/work-orders/${woId}/suspend`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: (data, { woId }) => {
@@ -360,7 +368,8 @@ export function useSuspendWorkOrderMutation({
 }
 
 // ============================================================
-// FINISH WORK ORDER
+// FINISH — POST /admin/work-orders/{id}/finish
+// Return: finishWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
 export function useFinishWorkOrderMutation({

@@ -4,21 +4,40 @@ export interface Transaction {
   total_biaya: number;
   metode_pembayaran: string;
   tanggal_bayar: string;
-  // enriched from WO (populated by hooks)
+  status: string;
+  created_at: string;
   nomor_wo?: string;
   customer_nama?: string;
   kendaraan_info?: string;
 }
 
-export interface LaporanTransaksi {
-  periode_mulai: string;
-  periode_akhir: string;
+export interface TransactionReport {
+  periode_dari: string;
+  periode_sampai: string;
   total_pendapatan: number;
   jumlah_transaksi: number;
-  transaksi: Transaction[];
+  transactions: Transaction[];
 }
 
-export interface LaporanFilter {
-  start_date: string; // format: YYYY-MM-DD
-  end_date: string;   // format: YYYY-MM-DD
+export interface Invoice {
+  wo_id: string;
+  nomor_wo: string;
+  biaya_jasa: number;
+  total_material: number;
+  total_biaya: number;
+  items: WOItem[];
+}
+ 
+export interface WOItem {
+  wo_item_id: string;
+  inventory_id: string;
+  nama_item: string;
+  jumlah: number;
+  harga_satuan: number;
+  subtotal: number;
+}
+ 
+export interface PaymentRequest {
+  metode_pembayaran: string;
+  total_biaya: number;
 }

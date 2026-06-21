@@ -1,0 +1,413 @@
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+interface AddMekanikModalProps {
+  visible: boolean;
+  onClose: () => void;
+  isEdit?: boolean;
+  mekanikData?: any;
+  onSave?: (data: {
+    nama: string;
+    telepon: string;
+    keahlian: string;
+    status: string;
+  }) => void;
+  isLoading?: boolean;
+}
+
+const specialties = [
+  "Mesin & Transmisi",
+  "Kelistrikan & AC",
+  "Body & Cat",
+  "Suspensi & Rem",
+  "Kaki-Kaki & Ban",
+  "Umum / Servis Ringan",
+];
+
+const AddMekanikModal: React.FC<AddMekanikModalProps> = ({
+  visible,
+  onClose,
+  isEdit = false,
+  mekanikData = null,
+  onSave,
+  isLoading,
+}) => {
+  const [nama, setNama] = useState("");
+  const [telepon, setTelepon] = useState("");
+  const [spesialisasi, setSpesialisasi] = useState("");
+  const [status, setStatus] = useState("tersedia");
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  // Mengisi form dengan data yang sudah ada jika dalam mode edit
+  useEffect(() => {
+    if (visible && isEdit && mekanikData) {
+      setNama(mekanikData.name || "");
+      setTelepon(mekanikData.phone || "");
+      setSpesialisasi(mekanikData.spec || "");
+      setStatus(mekanikData.status || "tersedia");
+    } else if (visible && !isEdit) {
+      setNama("");
+      setTelepon("");
+      setSpesialisasi("");
+      setStatus("tersedia");
+    }
+  }, [visible, isEdit, mekanikData]);
+
+  const handleSave = () => {
+    if (!nama.trim() || !telepon.trim() || !spesialisasi) return;
+    onSave?.({
+      nama: nama.trim(),
+      telepon: telepon.trim(),
+      keahlian: spesialisasi,
+      status,
+    });
+    onClose();
+  };
+  if (!visible) return null;
+  return (
+    <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.bottomSheet}>
+          <View style={styles.handleContainer}>
+            <View style={styles.dragHandle} />
+          </View>
+
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>
+                {isEdit ? "Edit Mekanik" : "Tambah Mekanik"}
+              </Text>
+              <Text style={styles.subtitle}>
+                {isEdit ? "Perbarui data mekanik" : "Isi data mekanik baru"}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={20} color="#555" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.formContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Input Nama Lengkap */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Nama Lengkap <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color="#999"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Masukkan nama lengkap"
+                  value={nama}
+                  onChangeText={setNama}
+                />
+              </View>
+            </View>
+
+            {/* Input Nomor Telepon */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Nomor Telepon <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="call-outline"
+                  size={20}
+                  color="#999"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="08xx-xxxx-xxxx"
+                  keyboardType="phone-pad"
+                  value={telepon}
+                  onChangeText={setTelepon}
+                />
+              </View>
+            </View>
+
+            {/* Custom Dropdown Keahlian / Spesialisasi */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Keahlian / Spesialisasi <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.inputWrapper,
+                  dropdownVisible && styles.inputWrapperActive,
+                ]}
+                onPress={() => setDropdownVisible(!dropdownVisible)}
+              >
+                <Ionicons
+                  name="build-outline"
+                  size={20}
+                  color="#999"
+                  style={styles.inputIcon}
+                />
+                <Text
+                  style={[
+                    styles.inputText,
+                    !spesialisasi && styles.placeholderText,
+                  ]}
+                >
+                  {spesialisasi || "Pilih spesialisasi"}
+                </Text>
+                <Ionicons
+                  name={dropdownVisible ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color="#999"
+                />
+              </TouchableOpacity>
+
+              {/* Dropdown Options */}
+              {dropdownVisible && (
+                <View style={styles.dropdownContainer}>
+                  {specialties.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.dropdownItem,
+                        index === specialties.length - 1 && {
+                          borderBottomWidth: 0,
+                        },
+                      ]}
+                      onPress={() => {
+                        setSpesialisasi(item);
+                        setDropdownVisible(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>{item}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Status Ketersediaan */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Status Ketersediaan</Text>
+              <View style={styles.statusRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.statusBtn,
+                    status === "tersedia" && styles.statusBtnActiveTersedia,
+                  ]}
+                  onPress={() => setStatus("tersedia")}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={20}
+                    color={status === "tersedia" ? "#fff" : "#999"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusBtnText,
+                      status === "tersedia" && styles.statusBtnTextActive,
+                    ]}
+                  >
+                    Tersedia
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.statusBtn,
+                    status === "sibuk" && styles.statusBtnActiveTidakTersedia,
+                  ]}
+                  onPress={() => setStatus("sibuk")}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={20}
+                    color={status === "sibuk" ? "#555" : "#999"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusBtnText,
+                      status === "sibuk" && styles.statusBtnTextActiveDark,
+                    ]}
+                  >
+                    Tidak Tersedia
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.btnBatal} onPress={onClose}>
+              <Text style={styles.btnBatalText}>Batal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnSimpan}
+              onPress={handleSave}
+              disabled={isLoading}
+            >
+              <Text style={styles.btnSimpanText}>
+                {isLoading ? "Menyimpan..." : "Simpan"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  bottomSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "90%",
+    paddingBottom: 20,
+  },
+  handleContainer: { alignItems: "center", paddingTop: 10, paddingBottom: 5 },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 2,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  title: { fontSize: 18, fontWeight: "bold", color: "#111" },
+  subtitle: { fontSize: 13, color: "#888", marginTop: 2 },
+  closeButton: {
+    backgroundColor: "#f5f5f5",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  formContainer: { paddingHorizontal: 20, paddingTop: 15 },
+  inputGroup: { marginBottom: 15 },
+  label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8 },
+  asterisk: { color: "#1a73e8" },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 50,
+    backgroundColor: "#fcfcfc",
+    outlineStyle: 'none'
+  },
+  inputWrapperActive: { borderColor: "#1a73e8", backgroundColor: "#fff" },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 15, color: "#333", outlineStyle: 'none' },
+  inputText: { flex: 1, fontSize: 15, color: "#333" },
+  placeholderText: { color: "#999" },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    marginTop: -5,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 0,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  dropdownItemText: { fontSize: 15, color: "#333" },
+  statusRow: { flexDirection: "row", justifyContent: "space-between" },
+  statusBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 10,
+    height: 50,
+    marginHorizontal: 4,
+  },
+  statusBtnActiveTersedia: {
+    backgroundColor: "#1ea446",
+    borderColor: "#1ea446",
+  },
+  statusBtnActiveTidakTersedia: {
+    backgroundColor: "#f0f0f0",
+    borderColor: "#ccc",
+  },
+  statusBtnText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#888",
+  },
+  statusBtnTextActive: { color: "#fff" },
+  statusBtnTextActiveDark: { color: "#666" },
+  footer: { flexDirection: "row", paddingHorizontal: 20, paddingTop: 10 },
+  btnBatal: {
+    flex: 1,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    marginRight: 10,
+  },
+  btnBatalText: { fontSize: 16, fontWeight: "bold", color: "#555" },
+  btnSimpan: {
+    flex: 1,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#8cb4f5",
+    borderRadius: 10,
+  },
+  btnSimpanText: { fontSize: 16, fontWeight: "bold", color: "#fff" },
+});
+
+export default AddMekanikModal;

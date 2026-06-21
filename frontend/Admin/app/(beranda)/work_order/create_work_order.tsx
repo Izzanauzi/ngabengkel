@@ -476,7 +476,11 @@ export default function CreateWorkOrderScreen() {
     if (booking_id) payload.booking_id = booking_id;
 
     console.log('[CreateWO] payload:', JSON.stringify(payload, null, 2));
-    createWorkOrderMutation.mutate(payload);
+    createWorkOrderMutation.mutate(payload, {
+      onSuccess: () => {
+        router.replace("/(beranda)/work_order" as any);
+      },
+    });
   };
 
   const isLoading = createWorkOrderMutation.isPending;
@@ -547,7 +551,6 @@ export default function CreateWorkOrderScreen() {
               onSelect={(item) => {
                 const found = customers.find((c) => c.user_id === item.value);
                 setSelectedCustomer(found ?? null);
-                // Reset kendaraan kalau customer berganti
                 setSelectedKendaraan(null);
               }}
               onClear={() => {
@@ -685,8 +688,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#2563EB",
-    paddingTop: 52,
+    backgroundColor: "#3B7BF6",
+    paddingTop: 20,
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
