@@ -48,3 +48,58 @@ export function useCreateCustomerMutation({
   });
   return { createMutation };
 }
+
+export function useUpdateCustomerMutation({
+  onSuccess,
+  onError,
+}: {
+  onSuccess?: () => void;
+  onError?: (message: string) => void;
+} = {}) {
+  const queryClient = useQueryClient();
+  const updateMutation = useMutation({
+    mutationFn: ({ userId, payload }: { userId: string; payload: CustomerRequest }) =>
+      baseFetch<Customer>({
+        method: "PUT",
+        url: `/admin/customers/${userId}`,
+        payload,
+        options: { showError: false },
+      }),
+    onSuccess: () => {
+      onSuccess?.();
+      queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
+      onError?.(msg);
+    },
+  });
+  return { updateMutation };
+}
+
+export function useDeleteCustomerMutation({
+  onSuccess,
+  onError,
+}: {
+  onSuccess?: () => void;
+  onError?: (message: string) => void;
+} = {}) {
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) =>
+      baseFetch<{ message: string }>({
+        method: "DELETE",
+        url: `/admin/customers/${userId}`,
+        options: { showError: false },
+      }),
+    onSuccess: () => {
+      onSuccess?.();
+      queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
+      onError?.(msg);
+    },
+  });
+  return { deleteMutation };
+}
