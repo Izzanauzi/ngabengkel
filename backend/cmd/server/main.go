@@ -122,7 +122,6 @@ func main() {
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/progress", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.UploadProgress)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/suspend", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Suspend)))
 	mux.HandleFunc("POST /api/v1/admin/work-orders/{id}/finish", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.Finish)))
-	mux.HandleFunc("PUT /api/v1/admin/work-orders/{id}/biaya", middleware.RequireAuth(middleware.RequireRole("admin", adminWOHandler.UpdateBiaya)))
 
 	// Admin Inventory routes — butuh token + role admin
 	mux.HandleFunc("GET /api/v1/admin/inventory", middleware.RequireAuth(middleware.RequireRole("admin", inventoryHandler.GetAll)))

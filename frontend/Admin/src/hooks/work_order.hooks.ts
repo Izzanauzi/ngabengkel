@@ -214,12 +214,12 @@ export function useGetInvoice(woId: string | undefined) {
 // ============================================================
 
 interface UseCreateWorkOrderMutationProps {
-  onSuccess: (woId: string) => void;
+  successAction: (woId: string) => void;
   onError?: (message: string) => void;
 }
 
 export function useCreateWorkOrderMutation({
-  onSuccess,
+  successAction,
   onError,
 }: UseCreateWorkOrderMutationProps) {
   const queryClient = useQueryClient();
@@ -236,14 +236,16 @@ export function useCreateWorkOrderMutation({
     onSuccess: (data) => {
       if (data?.statusCode === 200 || data?.statusCode === 201) {
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-        onSuccess(data.data.wo_id);
+        successAction(data.data.wo_id);
       } else {
+        // API return non-2xx tapi tidak throw (edge case baseFetch)
         onError?.(data?.message ?? "Gagal membuat work order");
       }
     },
 
     onError: (_error: any) => {
-      const msg = _error?.message ?? "Gagal membuat work order. Coba lagi.";
+      const msg =
+        _error?.message ?? "Gagal membuat work order. Coba lagi.";
       onError?.(msg);
     },
   });
@@ -257,12 +259,10 @@ export function useCreateWorkOrderMutation({
 // ============================================================
 
 export function useStartWorkOrderMutation({
-  onSuccess,
-  onError,
+  successAction,
 }: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+  successAction: () => void;
+}) {
   const queryClient = useQueryClient();
 
   const startWorkOrderMutation = useMutation({
@@ -275,15 +275,10 @@ export function useStartWorkOrderMutation({
 
     onSuccess: (data, woId) => {
       if (data?.statusCode === 200) {
-        onSuccess?.();
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
         queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+        successAction();
       }
-    },
-
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Gagal memulai WO";
-      onError?.(msg);
     },
   });
 
@@ -301,10 +296,10 @@ interface UploadProgressPayload {
 }
 
 export function useUploadProgressMutation({
-  onSuccess,
+  successAction,
 }: {
-  onSuccess?: () => void;
-} = {}) {
+  successAction: () => void;
+}) {
   const queryClient = useQueryClient();
 
   const uploadProgressMutation = useMutation({
@@ -321,9 +316,9 @@ export function useUploadProgressMutation({
 
     onSuccess: (data, { woId }) => {
       if (data?.statusCode === 200 || data?.statusCode === 201) {
-        onSuccess?.();
         queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
+        successAction();
       }
     },
   });
@@ -342,10 +337,10 @@ interface SuspendPayload {
 }
 
 export function useSuspendWorkOrderMutation({
-  onSuccess,
+  successAction,
 }: {
-  onSuccess?: () => void;
-} = {}) {
+  successAction: () => void;
+}) {
   const queryClient = useQueryClient();
 
   const suspendWorkOrderMutation = useMutation({
@@ -362,9 +357,9 @@ export function useSuspendWorkOrderMutation({
 
     onSuccess: (data, { woId }) => {
       if (data?.statusCode === 200) {
-        onSuccess?.();
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
         queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+        successAction();
       }
     },
   });
@@ -377,82 +372,31 @@ export function useSuspendWorkOrderMutation({
 // Return: finishWorkOrderMutation (sesuai work_order_detail.tsx)
 // ============================================================
 
-interface FinishWorkOrderPayload {
-  woId: string;
-  biaya_jasa: number;
-}
-
 export function useFinishWorkOrderMutation({
-  onSuccess,
-  onError,
+  successAction,
 }: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+  successAction: () => void;
+}) {
   const queryClient = useQueryClient();
 
   const finishWorkOrderMutation = useMutation({
-    mutationFn: ({ woId, biaya_jasa }: FinishWorkOrderPayload) =>
+    mutationFn: (woId: string) =>
       baseFetch<ApiResponse<null>>({
         method: "POST",
         url: `/admin/work-orders/${woId}/finish`,
-        payload: { biaya_jasa },
         options: { showError: false },
       }),
 
-    onSuccess: (data, { woId }) => {
+    onSuccess: (data, woId) => {
       if (data?.statusCode === 200) {
-        onSuccess?.();
         queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
         queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+        successAction();
       }
-    },
-
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Gagal menyelesaikan WO";
-      onError?.(msg);
     },
   });
 
   return { finishWorkOrderMutation };
-}
-
-// ============================================================
-// ADD MATERIAL TO WORK ORDER
-// ============================================================
-
-interface AddMaterialPayload {
-  woId: string;
-  inventory_id: string;
-  jumlah: number;
-}
-
-export function useAddMaterialMutation({
-  onSuccess,
-}: {
-  onSuccess?: () => void;
-} = {}) {
-  const queryClient = useQueryClient();
-
-  const addMaterialMutation = useMutation({
-    mutationFn: ({ woId, inventory_id, jumlah }: AddMaterialPayload) =>
-      baseFetch<ApiResponse<null>>({
-        method: "POST",
-        url: `/admin/work-orders/${woId}/items`,
-        payload: { inventory_id, jumlah },
-        options: { showError: false },
-      }),
-
-    onSuccess: (data, { woId }) => {
-      if (data?.statusCode === 200 || data?.statusCode === 201) {
-        onSuccess?.();
-        queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
-        queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
-      }
-    },
-  });
-
-  return { addMaterialMutation };
 }
 
 // ============================================================
@@ -466,12 +410,12 @@ interface ConfirmPaymentPayload {
 }
 
 export function useConfirmPaymentMutation({
-  onSuccess,
+  successAction,
   onError,
 }: {
-  onSuccess?: () => void;
+  successAction: () => void;
   onError?: (msg: string) => void;
-} = {}) {
+}) {
   const queryClient = useQueryClient();
 
   const confirmPaymentMutation = useMutation({
@@ -484,9 +428,9 @@ export function useConfirmPaymentMutation({
       }),
 
     onSuccess: (data, { woId }) => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["getAllWorkOrders"] });
       queryClient.invalidateQueries({ queryKey: ["getWorkOrderById", woId] });
+      successAction();
     },
 
     onError: (error: any) => {

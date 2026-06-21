@@ -22,13 +22,7 @@ export function useGetAllMekanik() {
   return { mekaniks, isLoading, refetch };
 }
 
-export function useCreateMekanikMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useCreateMekanikMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const createMutation = useMutation({
     mutationFn: (payload: MekanikRequest) =>
@@ -36,27 +30,17 @@ export function useCreateMekanikMutation({
         method: "POST",
         url: `/admin/mekaniks`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminMekaniks"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { createMutation };
 }
 
-export function useUpdateMekanikMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useUpdateMekanikMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: MekanikRequest }) =>
@@ -64,42 +48,28 @@ export function useUpdateMekanikMutation({
         method: "PUT",
         url: `/admin/mekaniks/${id}`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminMekaniks"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { updateMutation };
 }
 
-export function useDeleteMekanikMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useDeleteMekanikMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       baseFetch<{ message: string }>({
         method: "DELETE",
         url: `/admin/mekaniks/${id}`,
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminMekaniks"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { deleteMutation };

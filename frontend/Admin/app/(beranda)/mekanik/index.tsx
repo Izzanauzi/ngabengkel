@@ -45,7 +45,7 @@ export default function MekanikScreen() {
   const [selectedMekanik, setSelectedMekanik] = useState<Mekanik | null>(null);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const { mekaniks, isLoading } = useGetAllMekanik();
   const { createMutation } = useCreateMekanikMutation({
     onSuccess: () => {

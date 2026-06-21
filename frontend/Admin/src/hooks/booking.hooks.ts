@@ -29,16 +29,10 @@ export function useGetPendingBookings() {
 }
 
 // ============================================================
-// ACCEPT — POST /bookings/{id}/approve
+// ACCEPT — POST /bookings/{id}/approve  (sesuai OpenAPI doc)
 // ============================================================
 
-export function useAcceptBookingMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useAcceptBookingMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const acceptMutation = useMutation({
@@ -46,18 +40,12 @@ export function useAcceptBookingMutation({
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/bookings/${bookingId}/accept`,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminBookingsPending"] });
-      queryClient.invalidateQueries({ queryKey: ["adminBookingsAll"] });
-    },
-
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
 
@@ -65,16 +53,11 @@ export function useAcceptBookingMutation({
 }
 
 // ============================================================
-// REJECT — POST /bookings/{id}/reject
+// REJECT — POST /bookings/{id}/reject  (sesuai OpenAPI doc)
+// field: alasan (bukan alasan_tolak)
 // ============================================================
 
-export function useRejectBookingMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useRejectBookingMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const rejectMutation = useMutation({
@@ -82,19 +65,13 @@ export function useRejectBookingMutation({
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/admin/bookings/${bookingId}/reject`,
-        payload: { alasan_tolak },
-        options: { showError: false },
+        payload: { alasan_tolak: alasan_tolak },
+        options: { showError: true },
       }),
 
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminBookingsPending"] });
-      queryClient.invalidateQueries({ queryKey: ["adminBookingsAll"] });
-    },
-
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
 
@@ -102,7 +79,8 @@ export function useRejectBookingMutation({
 }
 
 // ============================================================
-// GET ALL (semua status) — GET /bookings
+// GET ALL (semua status) — GET /bookings  (admin dapat semua)
+// Dipakai untuk tab Disetujui & Ditolak
 // ============================================================
 
 export function useGetAllBookings() {

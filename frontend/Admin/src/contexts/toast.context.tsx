@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 import {
   Animated,
   StyleSheet,
@@ -34,8 +34,10 @@ export function useToast() {
 function ToastBanner({ state }: { state: ToastState }) {
   const translateY = useRef(new Animated.Value(-120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const prevVisible = useRef(false);
 
-  useEffect(() => {
+  if (state.visible !== prevVisible.current) {
+    prevVisible.current = state.visible;
     if (state.visible) {
       Animated.parallel([
         Animated.spring(translateY, {
@@ -64,7 +66,7 @@ function ToastBanner({ state }: { state: ToastState }) {
         }),
       ]).start();
     }
-  }, [state.visible]);
+  }
 
   const bg = state.type === "success" ? "#2E7D32" : "#C62828";
   const icon = state.type === "success" ? "checkmark-circle" : "alert-circle";

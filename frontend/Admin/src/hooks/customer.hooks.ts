@@ -21,13 +21,7 @@ export function useGetAllCustomers() {
   return { customers, isLoading, refetch };
 }
 
-export function useCreateCustomerMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useCreateCustomerMutation({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const createMutation = useMutation({
     mutationFn: (payload: CustomerRequest) =>
@@ -35,15 +29,11 @@ export function useCreateCustomerMutation({
         method: "POST",
         url: `/admin/customers`,
         payload,
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { createMutation };

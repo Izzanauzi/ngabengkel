@@ -39,13 +39,7 @@ export function useGetQueue() {
   return { queue, isLoading, refetch };
 }
 
-export function useUpdateSlotStatus({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useUpdateSlotStatus({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const updateSlotStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -53,28 +47,18 @@ export function useUpdateSlotStatus({
         method: "PUT",
         url: `/admin/slots/${id}`,
         payload: { status },
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminSlots"] });
       queryClient.invalidateQueries({ queryKey: ["adminQueue"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { updateSlotStatus };
 }
 
-export function useAssignSlot({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
+export function useAssignSlot({ successAction }: { successAction?: () => void } = {}) {
   const queryClient = useQueryClient();
   const assignSlot = useMutation({
     mutationFn: ({ slotId, wo_id }: { slotId: string; wo_id: string }) =>
@@ -82,16 +66,12 @@ export function useAssignSlot({
         method: "POST",
         url: `/admin/slots/${slotId}/assign`,
         payload: { wo_id },
-        options: { showError: false },
+        options: { showError: true },
       }),
     onSuccess: () => {
-      onSuccess?.();
       queryClient.invalidateQueries({ queryKey: ["adminSlots"] });
       queryClient.invalidateQueries({ queryKey: ["adminQueue"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
+      successAction?.();
     },
   });
   return { assignSlot };
