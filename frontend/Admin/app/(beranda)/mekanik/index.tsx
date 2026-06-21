@@ -31,19 +31,16 @@ export default function MekanikScreen() {
   const [selectedMekanik, setSelectedMekanik] = useState<Mekanik | null>(null);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const { mekaniks, isLoading } = useGetAllMekanik();
   const { createMutation } = useCreateMekanikMutation({
-    onSuccess: () => { showSuccess("Mekanik berhasil ditambahkan"); setFormModalVisible(false); },
-    onError: (msg) => showError(msg),
+    successAction: () => { showSuccess("Mekanik berhasil ditambahkan"); setFormModalVisible(false); },
   });
   const { updateMutation } = useUpdateMekanikMutation({
-    onSuccess: () => { showSuccess("Mekanik berhasil diperbarui"); setFormModalVisible(false); },
-    onError: (msg) => showError(msg),
+    successAction: () => { showSuccess("Mekanik berhasil diperbarui"); setFormModalVisible(false); },
   });
   const { deleteMutation } = useDeleteMekanikMutation({
-    onSuccess: () => { showSuccess("Mekanik berhasil dihapus"); setDeleteModalVisible(false); },
-    onError: (msg) => showError(msg),
+    successAction: () => { showSuccess("Mekanik berhasil dihapus"); setDeleteModalVisible(false); },
   });
 
   const cardItems = mekaniks.map(toCardItem);
@@ -129,6 +126,11 @@ export default function MekanikScreen() {
         )}
       </View>
 
+      <TouchableOpacity style={styles.fab} onPress={handleAddClick}>
+        <Ionicons name="add" size={24} color="#fff" />
+        <Text style={styles.fabText}>Tambah Mekanik</Text>
+      </TouchableOpacity>
+
       <AddMekanikModal
         visible={isFormModalVisible}
         onClose={() => setFormModalVisible(false)}
@@ -142,7 +144,6 @@ export default function MekanikScreen() {
         onSave={handleSave}
         isLoading={isSaving}
       />
-      
       <DeleteModal
         visible={isDeleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
@@ -166,4 +167,6 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, marginLeft: 10 },
   addBtnSmall: { backgroundColor: '#1a73e8', flexDirection: 'row', borderRadius: 8, paddingHorizontal: 15, height: 45, alignItems: 'center' },
   addBtnSmallText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
+  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1a73e8', flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30, elevation: 5 },
+  fabText: { color: '#fff', fontWeight: 'bold', fontSize: 16, marginLeft: 5 },
 });

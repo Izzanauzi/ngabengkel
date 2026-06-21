@@ -36,7 +36,7 @@ export default function NotaTagihanScreen() {
   const { workOrder, isLoading } = useGetWorkOrderById(wo_id);
 
   const { confirmPaymentMutation } = useConfirmPaymentMutation({
-    onSuccess: () => router.back(),
+    successAction: () => router.back(),
     onError: (msg) => setPayError(msg),
   });
 

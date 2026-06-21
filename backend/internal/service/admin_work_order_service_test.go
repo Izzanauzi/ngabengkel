@@ -191,38 +191,24 @@ func TestAdminWOService_Suspend_StatusSalah(t *testing.T) {
 // ── Finish ────────────────────────────────────────────────────────────────────
 
 func TestAdminWOService_Finish_HappyPath(t *testing.T) {
-	var capturedBiaya float64
+	var capturedStatus string
 	svc := adminWOSvc(&mockWorkOrderRepo{
 		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
 			return &model.WorkOrderDetail{
 				WorkOrder: model.WorkOrder{WoID: "wo-1", Status: "sedang_dikerjakan"},
 			}, nil
 		},
-		finishWOFn: func(_ string, biayaJasa float64) error {
-			capturedBiaya = biayaJasa
+		updateStatusFn: func(_ string, status string) error {
+			capturedStatus = status
 			return nil
 		},
 	})
 
-	if err := svc.Finish("wo-1", model.FinishRequest{BiayaJasa: 50000}); err != nil {
+	if err := svc.Finish("wo-1"); err != nil {
 		t.Fatalf("tidak expect error, got: %v", err)
 	}
-	if capturedBiaya != 50000 {
-		t.Errorf("expect biaya_jasa 50000, got %v", capturedBiaya)
-	}
-}
-
-func TestAdminWOService_Finish_BiayaGratis(t *testing.T) {
-	svc := adminWOSvc(&mockWorkOrderRepo{
-		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
-			return &model.WorkOrderDetail{
-				WorkOrder: model.WorkOrder{WoID: "wo-1", Status: "sedang_dikerjakan"},
-			}, nil
-		},
-	})
-
-	if err := svc.Finish("wo-1", model.FinishRequest{BiayaJasa: 0}); err != nil {
-		t.Fatalf("biaya 0 harus diizinkan, got: %v", err)
+	if capturedStatus != "selesai" {
+		t.Errorf("expect status selesai, got %s", capturedStatus)
 	}
 }
 
@@ -233,7 +219,7 @@ func TestAdminWOService_Finish_WOTidakDitemukan(t *testing.T) {
 		},
 	})
 
-	err := svc.Finish("wo-99", model.FinishRequest{})
+	err := svc.Finish("wo-99")
 	assertError(t, err, "work order tidak ditemukan")
 }
 
@@ -246,46 +232,6 @@ func TestAdminWOService_Finish_StatusSalah(t *testing.T) {
 		},
 	})
 
-	err := svc.Finish("wo-1", model.FinishRequest{})
+	err := svc.Finish("wo-1")
 	assertError(t, err, "work order tidak dalam status sedang dikerjakan")
-}
-
-// ── UpdateBiaya ───────────────────────────────────────────────────────────────
-
-func TestAdminWOService_UpdateBiaya_HappyPath(t *testing.T) {
-	var capturedBiayaJasa, capturedEstimasi float64
-	svc := adminWOSvc(&mockWorkOrderRepo{
-		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
-			return &model.WorkOrderDetail{
-				WorkOrder: model.WorkOrder{WoID: "wo-1", Status: "sedang_dikerjakan"},
-			}, nil
-		},
-		updateBiayaFn: func(_ string, bj, est float64) error {
-			capturedBiayaJasa = bj
-			capturedEstimasi = est
-			return nil
-		},
-	})
-
-	err := svc.UpdateBiaya("wo-1", model.UpdateBiayaRequest{BiayaJasa: 75000, EstimasiBiaya: 100000})
-	if err != nil {
-		t.Fatalf("tidak expect error, got: %v", err)
-	}
-	if capturedBiayaJasa != 75000 {
-		t.Errorf("expect biaya_jasa 75000, got %v", capturedBiayaJasa)
-	}
-	if capturedEstimasi != 100000 {
-		t.Errorf("expect estimasi_biaya 100000, got %v", capturedEstimasi)
-	}
-}
-
-func TestAdminWOService_UpdateBiaya_WOTidakDitemukan(t *testing.T) {
-	svc := adminWOSvc(&mockWorkOrderRepo{
-		findByIDFn: func(_ string) (*model.WorkOrderDetail, error) {
-			return nil, errors.New("work order tidak ditemukan")
-		},
-	})
-
-	err := svc.UpdateBiaya("wo-99", model.UpdateBiayaRequest{})
-	assertError(t, err, "work order tidak ditemukan")
 }
