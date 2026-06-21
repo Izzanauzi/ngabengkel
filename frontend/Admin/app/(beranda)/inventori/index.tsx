@@ -168,10 +168,10 @@ const InventoryFormModal = ({
   }, [editItem, visible]);
 
   const isValid = form.nama.trim() !== '' && form.harga_satuan > 0;
-
+  if (!visible) return null;
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+    <View style={styles.modalOverlay} onRequestClose={onClose}>
+      {/* <View > */}
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>
@@ -349,8 +349,8 @@ const InventoryFormModal = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
+      {/* </View> */}
+    </View>
   );
 };
 

@@ -116,8 +116,15 @@ export default function WorkOrderDetailScreen() {
     setShowFinishModal(false);
     finishWorkOrderMutation.mutate({
       woId: id!,
-      biaya_jasa: parseFloat(biayaJasaInput) || 0,
-    });
+      biaya_jasa: parseFloat(biayaJasaInput) || 0
+    },
+      {
+        onSuccess: () => {
+          showSuccess("WO berhasil diselesaikan");
+          router.replace("/(beranda)/work_order" as any);
+        },
+      }
+      )
   };
 
   if (isLoading) {
@@ -148,7 +155,7 @@ export default function WorkOrderDetailScreen() {
     hour: "2-digit",
     minute: "2-digit",
   });
-
+  
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -373,76 +380,104 @@ export default function WorkOrderDetailScreen() {
         onClose={() => setShowMaterial(false)}
       />
 
-      {/* Modal biaya jasa saat finish WO */}
-      <Modal visible={showFinishModal} transparent animationType="fade">
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}>
-            <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 20, width: "100%" }}>
-              <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 4 }}>
-                Selesaikan WO
-              </Text>
-              <Text style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                Masukkan biaya jasa pengerjaan (isi 0 jika tidak ada).
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 }}>
-                Biaya Jasa (Rp)
-              </Text>
-              <TextInput
-                style={{ backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: "#111827", marginBottom: 20 }}
-                value={biayaJasaInput}
-                onChangeText={setBiayaJasaInput}
-                placeholder="0"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-              />
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <TouchableOpacity
-                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center" }}
-                  onPress={() => setShowFinishModal(false)}
-                >
-                  <Text style={{ color: "#6B7280", fontWeight: "600" }}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: "#16A34A", alignItems: "center" }}
-                  onPress={handleConfirmFinish}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Selesaikan</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Modal biaya WO */}
+{showFinishModal && (
+  <View style={{
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    zIndex: 999,
+  }}>
+    {/* Backdrop */}
+    <TouchableOpacity
+      style={StyleSheet.absoluteFillObject}
+      onPress={() => setShowFinishModal(false)}
+    />
 
-      <Modal visible={confirmModal.visible} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%' }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', marginBottom: 8 }}>
-              {confirmModal.title}
-            </Text>
-            <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
-              {confirmModal.message}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
-                onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
-              >
-                <Text style={{ color: '#6B7280', fontWeight: '600' }}>Batal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#2563EB', alignItems: 'center' }}
-                onPress={confirmModal.onConfirm}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Ya, Lanjutkan</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ width: "100%" }}
+    >
+      <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 20, width: "100%" }}>
+        <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 4 }}>
+          Selesaikan WO
+        </Text>
+        <Text style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
+          Masukkan biaya jasa pengerjaan (isi 0 jika tidak ada).
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 }}>
+          Biaya Jasa (Rp)
+        </Text>
+        <TextInput
+          style={{ backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: "#111827", marginBottom: 20 }}
+          value={biayaJasaInput}
+          onChangeText={setBiayaJasaInput}
+          placeholder="0"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+        />
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <TouchableOpacity
+            style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center" }}
+            onPress={() => setShowFinishModal(false)}
+          >
+            <Text style={{ color: "#6B7280", fontWeight: "600" }}>Batal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: "#16A34A", alignItems: "center" }}
+            onPress={handleConfirmFinish}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Selesaikan</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+      </View>
+    </KeyboardAvoidingView>
+  </View>
+)}
+
+{confirmModal.visible && (
+  <View style={{
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+    padding: 24,
+  }}>
+    {/* Backdrop */}
+    <TouchableOpacity
+      style={StyleSheet.absoluteFillObject}
+      onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+    />
+
+    <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%' }}>
+      <Text style={{ fontSize: 17, fontWeight: '700', marginBottom: 8 }}>
+        {confirmModal.title}
+      </Text>
+      <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+        {confirmModal.message}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <TouchableOpacity
+          style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
+          onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+        >
+          <Text style={{ color: '#6B7280', fontWeight: '600' }}>Batal</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#2563EB', alignItems: 'center' }}
+          onPress={confirmModal.onConfirm}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Ya, Lanjutkan</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
     </View>
   );
 }
@@ -461,7 +496,7 @@ const badgeStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#1E3A5F" },
+  container: { flex: 1, backgroundColor: "#3B7BF6" },
   loadingContainer: {
     flex: 1,
     backgroundColor: "#FFF",
@@ -476,12 +511,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 10,
     pb: 12,
   },
   backBtn: { width: 36, height: 36, justifyContent: "center" },
-  headerCenter: { alignItems: "center" },
-  headerSubtitle: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  headerCenter: { alignItems: "start", width: "100%" },
+  headerSubtitle: { color: "#FFF", fontSize: 16, fontWeight: "500" },
   heroCard: {
     backgroundColor: "rgba(255,255,255,0.1)",
     margin: 16,

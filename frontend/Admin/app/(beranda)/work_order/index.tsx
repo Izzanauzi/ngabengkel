@@ -318,6 +318,7 @@ export default function WorkOrderScreen() {
       />
 
       {/* List */}
+      <View style={{ flex: 1 }}>
       {isLoading || isPending ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#2563EB" />
@@ -361,7 +362,8 @@ export default function WorkOrderScreen() {
             </View>
           }
         />
-      )}
+        )}
+        </View>
     </View>
   );
 }
@@ -419,7 +421,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, color: "#111827" },
+  searchInput: { flex: 1, fontSize: 14, color: "#111827", outlineStyle: 'none' },
   createBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -432,19 +434,25 @@ const styles = StyleSheet.create({
   createBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
 
   // Tabs
-  tabList: { marginTop: 14, maxHeight: 40 },
+  tabList: {
+    marginTop: 14,
+    marginBottom: 8,
+    flexGrow: 0,    // ← penting: cegah tab FlatList meregang
+    flexShrink: 0,
+  }, 
   tab: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  tabActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
-  tabText: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
-  tabTextActive: { color: "#FFFFFF", fontWeight: "600" },
-
+tabText: { fontSize: 13, color: "#6B7280", fontWeight: "600" }, 
+tabTextActive: { color: "#6B7280", fontWeight: "600" }, 
+centerContent: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
   // List
   listContent: { padding: 16, paddingBottom: 100 },
   centerContent: {

@@ -76,30 +76,3 @@ export function useUpdateCustomerMutation({
   });
   return { updateMutation };
 }
-
-export function useDeleteCustomerMutation({
-  onSuccess,
-  onError,
-}: {
-  onSuccess?: () => void;
-  onError?: (message: string) => void;
-} = {}) {
-  const queryClient = useQueryClient();
-  const deleteMutation = useMutation({
-    mutationFn: (userId: string) =>
-      baseFetch<{ message: string }>({
-        method: "DELETE",
-        url: `/admin/customers/${userId}`,
-        options: { showError: false },
-      }),
-    onSuccess: () => {
-      onSuccess?.();
-      queryClient.invalidateQueries({ queryKey: ["adminCustomers"] });
-    },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message ?? error?.message ?? "Terjadi kesalahan";
-      onError?.(msg);
-    },
-  });
-  return { deleteMutation };
-}
