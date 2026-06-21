@@ -1,9 +1,10 @@
 import { baseFetch } from "../utils/baseFetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { WorkOrder } from "../@types/workorder.types";
+import { WorkOrder, WorkOrderDetail } from "../@types/workorder.types";
 
-// ── GET ALL WORK ORDERS (customer: active WOs milik sendiri) ──────────────────
+// ── GET ALL WORK ORDERS (customer: active) ────────────────────────────────────
+// Backend wajib ?type=active, tanpa itu return 400
 
 export function useGetAllWorkOrders() {
   const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({
@@ -13,8 +14,9 @@ export function useGetAllWorkOrders() {
       baseFetch<WorkOrder[]>({
         method: "GET",
         url: "/work-orders",
+        params: { type: "active" }, // ← wajib
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
 
     retry: false,
     staleTime: 30 * 1000,
@@ -23,22 +25,24 @@ export function useGetAllWorkOrders() {
   });
 
   const workOrders = useMemo(() => data ?? [], [data]);
-
   return { workOrders, isLoading, isPending, refetch };
 }
 
 // ── GET WORK ORDER BY ID ──────────────────────────────────────────────────────
 
 export function useGetWorkOrderById(woId: string) {
-  const { data, isLoading, isPending, refetch } = useQuery<WorkOrder>({
+  const { data, isLoading, isPending, refetch } = useQuery<WorkOrderDetail>({
     queryKey: ["getWorkOrder", woId],
     enabled: !!woId,
 
     queryFn: () =>
-      baseFetch<WorkOrder>({
+      baseFetch<WorkOrderDetail>({
         method: "GET",
         url: `/work-orders/${woId}`,
         options: { showError: false },
+      }).then((res) => {
+        if (!res) throw new Error("work order tidak ditemukan");
+        return res;
       }),
 
     retry: false,
@@ -50,13 +54,9 @@ export function useGetWorkOrderById(woId: string) {
   return { workOrder: data ?? null, isLoading, isPending, refetch };
 }
 
-// ── APPROVE ACTION (customer menyetujui biaya tambahan) ───────────────────────
+// ── APPROVE ACTION ────────────────────────────────────────────────────────────
 
-interface UseApproveActionProps {
-  successAction: () => void;
-}
-
-export function useApproveAction(woId: string, { successAction }: UseApproveActionProps) {
+export function useApproveAction(woId: string, { successAction }: { successAction: () => void }) {
   const queryClient = useQueryClient();
 
   const approveActionMutation = useMutation({
@@ -64,7 +64,7 @@ export function useApproveAction(woId: string, { successAction }: UseApproveActi
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/work-orders/${woId}/approve-action`,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: () => {
@@ -77,13 +77,9 @@ export function useApproveAction(woId: string, { successAction }: UseApproveActi
   return { approveActionMutation };
 }
 
-// ── REJECT ACTION (customer menolak biaya tambahan) ───────────────────────────
+// ── REJECT ACTION ─────────────────────────────────────────────────────────────
 
-interface UseRejectActionProps {
-  successAction: () => void;
-}
-
-export function useRejectAction(woId: string, { successAction }: UseRejectActionProps) {
+export function useRejectAction(woId: string, { successAction }: { successAction: () => void }) {
   const queryClient = useQueryClient();
 
   const rejectActionMutation = useMutation({
@@ -91,7 +87,7 @@ export function useRejectAction(woId: string, { successAction }: UseRejectAction
       baseFetch<{ message: string }>({
         method: "POST",
         url: `/work-orders/${woId}/reject-action`,
-        options: { showError: false },
+        options: { showError: true },
       }),
 
     onSuccess: () => {
@@ -104,7 +100,8 @@ export function useRejectAction(woId: string, { successAction }: UseRejectAction
   return { rejectActionMutation };
 }
 
-// ── GET HISTORY (riwayat servis milik customer) ───────────────────────────────
+// ── GET HISTORY ───────────────────────────────────────────────────────────────
+// Backend: GET /work-orders?type=histori
 
 export function useGetHistory() {
   const { data, isLoading, isPending, refetch } = useQuery<WorkOrder[]>({
@@ -113,9 +110,10 @@ export function useGetHistory() {
     queryFn: () =>
       baseFetch<WorkOrder[]>({
         method: "GET",
-        url: "/reports/history",
+        url: "/work-orders",
+        params: { type: "histori" }, // ← wajib
         options: { showError: false },
-      }),
+      }).then((res) => res ?? []),
 
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -124,6 +122,5 @@ export function useGetHistory() {
   });
 
   const history = useMemo(() => data ?? [], [data]);
-
   return { history, isLoading, isPending, refetch };
 }

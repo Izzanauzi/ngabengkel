@@ -116,7 +116,12 @@ func (h *AdminWorkOrderHandler) Suspend(w http.ResponseWriter, r *http.Request) 
 // POST /api/v1/admin/work-orders/{id}/finish
 func (h *AdminWorkOrderHandler) Finish(w http.ResponseWriter, r *http.Request) {
 	woID := r.PathValue("id")
-	if err := h.AdminWOService.Finish(woID); err != nil {
+	var req model.FinishRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Format request tidak valid")
+		return
+	}
+	if err := h.AdminWOService.Finish(woID, req); err != nil {
 		switch err.Error() {
 		case "work order tidak ditemukan":
 			writeError(w, http.StatusNotFound, err.Error())
@@ -128,4 +133,23 @@ func (h *AdminWorkOrderHandler) Finish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Work order selesai"})
+}
+
+// PUT /api/v1/admin/work-orders/{id}/biaya
+func (h *AdminWorkOrderHandler) UpdateBiaya(w http.ResponseWriter, r *http.Request) {
+	woID := r.PathValue("id")
+	var req model.UpdateBiayaRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Format request tidak valid")
+		return
+	}
+	if err := h.AdminWOService.UpdateBiaya(woID, req); err != nil {
+		if err.Error() == "work order tidak ditemukan" {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "Gagal update biaya work order")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Biaya work order berhasil diperbarui"})
 }

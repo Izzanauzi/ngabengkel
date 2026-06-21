@@ -38,7 +38,7 @@ export function NotaTagihanModal({ visible, onClose, woId }: NotaTagihanModalPro
   const { showSuccess } = useToast();
 
   const { confirmPaymentMutation } = useConfirmPaymentMutation({
-    successAction: () => {
+    onSuccess: () => {
       showSuccess("Pembayaran berhasil dikonfirmasi");
       onClose();
     },

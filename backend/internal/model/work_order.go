@@ -27,9 +27,15 @@ type Progress struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+type MekanikInfo struct {
+	Nama string `json:"nama"`
+}
+
 type WorkOrderDetail struct {
 	WorkOrder
-	Progress []Progress `json:"progress"`
+	Mekanik  *MekanikInfo `json:"mekanik"`
+	Progress []Progress   `json:"progress"`
+	Items    []WOItem     `json:"items"`
 }
 
 type WorkOrderRequest struct {
@@ -51,4 +57,13 @@ type ProgressRequest struct {
 type SuspendRequest struct {
 	Deskripsi        string  `json:"deskripsi"`
 	EstBiayaTambahan float64 `json:"est_biaya_tambahan"`
+}
+
+type FinishRequest struct {
+	BiayaJasa float64 `json:"biaya_jasa"`
+}
+
+type UpdateBiayaRequest struct {
+	BiayaJasa     float64 `json:"biaya_jasa"`
+	EstimasiBiaya float64 `json:"estimasi_biaya"`
 }

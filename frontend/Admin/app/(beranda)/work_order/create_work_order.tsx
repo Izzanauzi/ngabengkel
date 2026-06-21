@@ -443,7 +443,7 @@ export default function CreateWorkOrderScreen() {
   );
 
   const { createWorkOrderMutation } = useCreateWorkOrderMutation({
-    successAction: (woId) => {
+    onSuccess: (woId) => {
       router.replace(
         `/(beranda)/work_order/work_order_detail?id=${woId}` as any
       );

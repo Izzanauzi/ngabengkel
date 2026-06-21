@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Animated, Pressable, Platform,
+  Animated, Pressable, Platform, Modal
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
@@ -30,7 +30,9 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const translateX     = useRef(new Animated.Value(-300)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
-  // FIX #3: Pindah animasi ke useEffect, bukan saat render
+  // State untuk modal konfirmasi logout
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -50,7 +52,9 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     setTimeout(() => router.push(route as any), 250);
   };
 
-  const handleLogout = async () => {
+  // Fungsi yang dipanggil setelah menekan "Ya, Keluar" di Modal
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
     onClose();
     await logout();
     setTimeout(() => router.replace("/(auth)/login"), 250);
@@ -60,10 +64,39 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     ? user.nama.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
     : "AD";
 
+  // Desain Modal Konfirmasi Logout
+  const modalBox = (
+    <View style={styles.modalBox}>
+      <View style={styles.iconWrap}>
+        <Ionicons name="log-out-outline" size={32} color="#EF4444" />
+      </View>
+
+      <Text style={styles.modalTitle}>Keluar dari Akun?</Text>
+
+      <Text style={styles.modalMessage}>
+        Apakah Anda yakin ingin keluar dari panel Admin?
+      </Text>
+
+      <View style={styles.modalActions}>
+        <TouchableOpacity
+          style={styles.btnBatal}
+          onPress={() => setShowLogoutModal(false)}
+        >
+          <Text style={styles.btnBatalText}>Batal</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.btnKeluar}
+          onPress={confirmLogout}
+        >
+          <Text style={styles.btnKeluarText}>Ya, Keluar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <>
-      {/* FIX #2: overlay selalu ada tapi opacity 0 saat hidden, 
-          pointerEvents none saat tidak visible agar tidak block touch */}
       <Pressable
         style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
         onPress={onClose}
@@ -72,7 +105,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
       </Pressable>
 
-      {/* FIX #2: sidebar selalu di DOM, pakai pointerEvents untuk kontrol */}
       <Animated.View
         pointerEvents={visible ? "auto" : "none"}
         style={[styles.sidebar, { transform: [{ translateX }] }]}
@@ -123,13 +155,35 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.footerItem} onPress={handleLogout}>
+          {/* Tombol Logout sekarang membuka Modal, bukan langsung eksekusi */}
+          <TouchableOpacity style={styles.footerItem} onPress={() => setShowLogoutModal(true)}>
             <Ionicons name="log-out-outline" size={20} color="#E53935" />
             <Text style={[styles.footerText, { color: "#E53935" }]}>Keluar</Text>
           </TouchableOpacity>
           <Text style={styles.version}>Ngabengkel Admin · v1.0.0</Text>
         </View>
       </Animated.View>
+
+      {/* RENDER MODAL KONFIRMASI LOGOUT */}
+      {Platform.OS === 'web' ? (
+        showLogoutModal && (
+          <View style={styles.webModalOverlay}>
+            {modalBox}
+          </View>
+        )
+      ) : (
+        <Modal
+          visible={showLogoutModal}
+          transparent
+          statusBarTranslucent
+          animationType="fade"
+          onRequestClose={() => setShowLogoutModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            {modalBox}
+          </View>
+        </Modal>
+      )}
     </>
   );
 }
@@ -198,4 +252,82 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 14, fontWeight: "600", color: "#444" },
   version: { fontSize: 11, color: "#bbb", textAlign: "center", marginTop: 8 },
+
+  /* --- STYLES MODAL LOGOUT --- */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  webModalOverlay: {
+    position: 'fixed' as any,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 9999, // Pastikan zIndex sangat tinggi agar di atas sidebar
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 350,
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1a1a2e',
+  },
+  modalMessage: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    width: '100%',
+  },
+  btnBatal: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  btnBatalText: {
+    color: '#555',
+    fontWeight: '600',
+  },
+  btnKeluar: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  btnKeluarText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 });

@@ -1,42 +1,108 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DeleteModal from '../../../src/components/DeleteModal';
 import CustomerCard from '../../../src/components/customer/CustomerCard';
 import CustomerDetail from '../../../src/components/customer/CustomerDetail';
 import AddCustomerModal from '../../../src/components/AddCustomerModal';
-import { useGetAllCustomers, useCreateCustomerMutation } from '../../../src/hooks/customer.hooks';
+import { useGetAllCustomers, useCreateCustomerMutation, useUpdateCustomerMutation, useDeleteCustomerMutation } from '../../../src/hooks/customer.hooks';
+import { useGetAllKendaraan, useGetAllWorkOrders } from '../../../src/hooks/work_order.hooks';
 import type { Customer } from '../../../src/@types/customer.types';
-
-const toCardFormat = (c: Customer) => ({
-  id: c.user_id,
-  user_id: c.user_id,
-  initials: c.nama.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2),
-  name: c.nama,
-  phone: c.telepon ?? '-',
-  email: c.email,
-  vehicles: c.kendaraan?.length ?? 0,
-  wo: c.jumlah_wo ?? 0,
-  plate1: c.kendaraan?.[0]?.nomor_polisi ?? '',
-  car1: c.kendaraan?.[0] ? `${c.kendaraan[0].merek} ${c.kendaraan[0].model}` : '',
-  plate2: c.kendaraan?.[1]?.nomor_polisi,
-  car2: c.kendaraan?.[1] ? `${c.kendaraan[1].merek} ${c.kendaraan[1].model}` : undefined,
-});
 
 export default function CustomerScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // State untuk melihat detail
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  
+  // State untuk menghapus
   const [selectedForDelete, setSelectedForDelete] = useState<any>(null);
+  
+  // State untuk form modal (Tambah/Edit)
   const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState<any>(null);
 
-  const { customers, isLoading } = useGetAllCustomers();
-  const { createMutation } = useCreateCustomerMutation({ successAction: () => setAddModalVisible(false) });
+  const { customers, isLoading: loadingCust } = useGetAllCustomers();
+  const { kendaraanList, isLoading: loadingKend } = useGetAllKendaraan();
+  const { workOrders, isLoading: loadingWO } = useGetAllWorkOrders();
 
-  const cardItems = customers.map(toCardFormat);
+  // Status loading gabungan
+  const isDataLoading = loadingCust || loadingKend || loadingWO;
+  
+  // Hooks mutasi
+  const { createMutation } = useCreateCustomerMutation({ 
+    onSuccess: () => {
+      setAddModalVisible(false);
+      Alert.alert("Berhasil", "Customer baru berhasil ditambahkan", [{ text: "OK" }]);
+    } 
+  });
+
+  const { updateMutation } = useUpdateCustomerMutation({ 
+    onSuccess: () => {
+      setAddModalVisible(false);
+      Alert.alert("Berhasil", "Data customer diperbarui", [{ text: "OK" }]);
+    } 
+  });
+
+  const { deleteMutation } = useDeleteCustomerMutation({
+    onSuccess: () => {
+      setSelectedForDelete(null); 
+      Alert.alert("Berhasil", "Customer berhasil dihapus", [{ text: "OK" }]);
+    },
+    onError: (msg) => {
+      setSelectedForDelete(null); 
+      Alert.alert("Gagal Menghapus", msg, [{ text: "Mengerti" }]);
+    }
+  });
+
+  // Mapping data customer dan gabungkan dengan data kendaraan & WO yang sesuai
+  const cardItems = customers.map(c => {
+    const custVehicles = kendaraanList?.filter((k: any) => k.user_id === c.user_id) || [];
+    const custWOs = workOrders?.filter((wo: any) => wo.user_id === c.user_id || wo.user?.user_id === c.user_id) || [];
+    const woSelesai = custWOs.filter((wo: any) => wo.status === 'selesai' || wo.status === 'lunas').length;
+
+    return {
+      id: c.user_id,
+      user_id: c.user_id,
+      initials: c.nama.split(' ').filter(Boolean).map((w: string) => w[0]).join('').toUpperCase().slice(0, 2),
+      name: c.nama,
+      phone: c.telepon ?? '-',
+      email: c.email,
+      vehicles: custVehicles.length,
+      wo: woSelesai,
+      plate1: custVehicles[0]?.nomor_polisi ?? '',
+      car1: custVehicles[0] ? `${custVehicles[0].merek} ${custVehicles[0].model}` : '',
+      plate2: custVehicles[1]?.nomor_polisi,
+      car2: custVehicles[1] ? `${custVehicles[1].merek} ${custVehicles[1].model}` : undefined,
+    };
+  });
+
   const filteredItems = cardItems.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.phone.includes(searchQuery)
   );
+
+  // --- Handlers ---
+  const handleAddClick = () => {
+    setIsEditMode(false);
+    setCustomerToEdit(null);
+    setAddModalVisible(true);
+  };
+
+  const handleEditClick = (data: any) => {
+    setIsEditMode(true);
+    setCustomerToEdit(data);
+    setAddModalVisible(true);
+  };
+
+  const handleSaveModal = (formData: any) => {
+    if (isEditMode && customerToEdit) {
+      updateMutation.mutate({ id: customerToEdit.user_id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
 
   if (selectedCustomer) {
     return (
@@ -56,13 +122,13 @@ export default function CustomerScreen() {
         </View>
         <View style={styles.topStatBox}>
           <Text style={styles.topStatNumber}>
-            {customers.reduce((sum, c) => sum + (c.kendaraan?.length ?? 0), 0)}
+            {kendaraanList?.length || 0}
           </Text>
           <Text style={styles.topStatLabel}>Kendaraan</Text>
         </View>
         <View style={styles.topStatBox}>
           <Text style={styles.topStatNumber}>
-            {customers.reduce((sum, c) => sum + (c.jumlah_wo ?? 0), 0)}
+            {workOrders?.length || 0}
           </Text>
           <Text style={styles.topStatLabel}>WO Total</Text>
         </View>
@@ -84,13 +150,13 @@ export default function CustomerScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity style={styles.addBtnSmall} onPress={() => setAddModalVisible(true)}>
+          <TouchableOpacity style={styles.addBtnSmall} onPress={handleAddClick}>
             <Ionicons name="add" size={20} color="#fff" />
             <Text style={styles.addBtnSmallText}>Tambah</Text>
           </TouchableOpacity>
         </View>
 
-        {isLoading ? (
+        {isDataLoading ? (
           <ActivityIndicator size="large" color="#1a73e8" style={{ marginTop: 40 }} />
         ) : (
           <FlatList
@@ -99,7 +165,7 @@ export default function CustomerScreen() {
               <CustomerCard
                 item={item}
                 onView={(data: any) => setSelectedCustomer(data)}
-                onEdit={(data: any) => console.log('Edit:', data)}
+                onEdit={(data: any) => handleEditClick(data)}
                 onDelete={(data: any) => setSelectedForDelete(data)}
               />
             )}
@@ -109,22 +175,23 @@ export default function CustomerScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setAddModalVisible(true)}>
-        <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.fabText}>Tambah Customer</Text>
-      </TouchableOpacity>
-
       <AddCustomerModal
         visible={isAddModalVisible}
         onClose={() => setAddModalVisible(false)}
-        onSave={(data) => createMutation.mutate(data)}
-        isLoading={createMutation.isPending}
+        onSave={handleSaveModal}
+        isLoading={createMutation.isPending || updateMutation.isPending}
+        isEdit={isEditMode}
+        customerData={customerToEdit}
       />
 
       <DeleteModal
         visible={!!selectedForDelete}
         onClose={() => setSelectedForDelete(null)}
-        onConfirm={() => setSelectedForDelete(null)}
+        onConfirm={() => {
+          if (selectedForDelete) {
+            deleteMutation.mutate(selectedForDelete.user_id);
+          }
+        }} 
         title="Hapus Customer?"
         itemName={selectedForDelete?.name ?? ''}
       />
@@ -144,6 +211,4 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, marginLeft: 10 },
   addBtnSmall: { backgroundColor: '#1a73e8', flexDirection: 'row', borderRadius: 8, paddingHorizontal: 15, height: 45, alignItems: 'center' },
   addBtnSmallText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
-  fab: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1a73e8', flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30, elevation: 5 },
-  fabText: { color: '#fff', fontWeight: 'bold', fontSize: 16, marginLeft: 5 },
 });
