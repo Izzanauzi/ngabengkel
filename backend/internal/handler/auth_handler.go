@@ -58,7 +58,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Bedakan customer vs admin dari header X-App
 	expectedRole := r.Header.Get("X-App")
 	if expectedRole == "" {
-		expectedRole = "customer" // default ke customer
+		expectedRole = "customer"
 	}
 
 	result, err := h.AuthService.Login(req, expectedRole)

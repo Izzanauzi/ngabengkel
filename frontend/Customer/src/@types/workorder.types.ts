@@ -27,24 +27,6 @@ export interface WOItem {
   subtotal: number;
 }
 
-export interface WorkOrderDetail {
-  wo_id: string;
-  nomor_wo: string;
-  user_id: string | null;
-  kendaraan_id: string;
-  kendaraan?: Kendaraan | null;
-  booking_id: string | null;
-  mekanik_id: string | null;
-  mekanik?: { nama: string } | null;
-  deskripsi_kerusakan: string | null;
-  estimasi_biaya: number | null;
-  biaya_jasa: number | null;
-  status: "dibuat" | "sedang_dikerjakan" | "menunggu_persetujuan" | "selesai" | "lunas" | string;
-  progress: Progress[];
-  items: WOItem[];
-  created_at: string;
-}
-
 export interface WorkOrder {
   wo_id: string;
   nomor_wo: string;
@@ -54,10 +36,10 @@ export interface WorkOrder {
   booking_id: string | null;
   slot_id: string | null;
   mekanik_id: string | null;
-  mekanik?: { nama: string } | null;
-  deskripsi_kerusakan: string | null;
-  estimasi_biaya: number | null;
-  biaya_jasa: number | null;
+  mekanik?: Mekanik | null;
+  deskripsi_kerusakan: string;
+  estimasi_biaya: number;
+  biaya_jasa: number;
   status: "dibuat" | "sedang_dikerjakan" | "menunggu_persetujuan" | "selesai" | "lunas" | string;
   progress: Progress[];
   items: WOItem[];

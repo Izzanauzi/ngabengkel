@@ -8,9 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,10 +18,10 @@ import {
 } from "../../../src/hooks/work_order.hooks";
 import type { WorkOrderStatus } from "../../../src/@types/work_order.types";
 
+// Import Komponen Hasil Pemecahan (Sesuaikan path file-nya)
 import { ProgressItem } from "../../../src/components/work_order/progressItem";
 import { AddProgressModal } from "../../../src/components/work_order/addProgressModal";
 import { NotaTagihanModal } from "../../../src/components/work_order/notaTagihanModal";
-import { AddMaterialModal } from "../../../src/components/work_order/addMaterialModal";
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   dibuat: { bg: "#EFF6FF", text: "#2563EB" },
@@ -69,9 +66,6 @@ export default function WorkOrderDetailScreen() {
 
   const [showProgress, setShowProgress] = useState(false);
   const [showNota, setShowNota] = useState(false);
-  const [showMaterial, setShowMaterial] = useState(false);
-  const [showFinishModal, setShowFinishModal] = useState(false);
-  const [biayaJasaInput, setBiayaJasaInput] = useState("0");
   const [confirmModal, setConfirmModal] = useState<{
     visible: boolean;
     title: string;
@@ -79,19 +73,17 @@ export default function WorkOrderDetailScreen() {
     onConfirm: () => void;
   }>({ visible: false, title: '', message: '', onConfirm: () => {} });
 
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
 
   const { startWorkOrderMutation } = useStartWorkOrderMutation({
-    onSuccess: () => showSuccess("WO berhasil dimulai"),
-    onError: (msg) => showError(msg),
+    successAction: () => showSuccess("WO berhasil dimulai"),
   });
   const { finishWorkOrderMutation } = useFinishWorkOrderMutation({
-    onSuccess: () => showSuccess("WO berhasil diselesaikan"),
-    onError: (msg) => showError(msg),
+    successAction: () => showSuccess("WO berhasil diselesaikan"),
   });
 
-  const totalMaterial = (workOrder?.items ?? []).reduce(
-    (sum, i) => sum + i.subtotal,
+  const totalMaterial = (workOrder?.progress ?? []).reduce(
+    (sum, p) => sum + (p.est_biaya_tambahan ?? 0),
     0
   );
 
@@ -108,15 +100,14 @@ export default function WorkOrderDetailScreen() {
   };
 
   const handleFinish = () => {
-    setBiayaJasaInput("0");
-    setShowFinishModal(true);
-  };
-
-  const handleConfirmFinish = () => {
-    setShowFinishModal(false);
-    finishWorkOrderMutation.mutate({
-      woId: id!,
-      biaya_jasa: parseFloat(biayaJasaInput) || 0,
+    setConfirmModal({
+      visible: true,
+      title: 'Selesaikan WO',
+      message: 'Tandai work order ini sebagai selesai?',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        finishWorkOrderMutation.mutate(id!);
+      },
     });
   };
 
@@ -255,40 +246,40 @@ export default function WorkOrderDetailScreen() {
         </View>
 
         {/* Material Summary */}
-        {(totalMaterial > 0 || (workOrder.biaya_jasa ?? 0) > 0) && (
+        {totalMaterial > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>MATERIAL DIGUNAKAN</Text>
-            {(workOrder.items ?? []).map((item) => (
-              <View key={item.wo_item_id} style={styles.materialRow}>
-                <View style={styles.materialIcon}>
-                  <Ionicons name="cube-outline" size={14} color="#7C3AED" />
+            {(workOrder.progress ?? [])
+              .filter((p) => p.est_biaya_tambahan && p.est_biaya_tambahan > 0)
+              .map((item, idx) => (
+                <View key={idx} style={styles.materialRow}>
+                  <View style={styles.materialIcon}>
+                    <Ionicons name="cube-outline" size={14} color="#7C3AED" />
+                  </View>
+                  <Text style={styles.materialName} numberOfLines={1}>
+                    {item.deskripsi}
+                  </Text>
+                  <Text style={styles.materialHarga}>
+                    {formatRupiah(item.est_biaya_tambahan)}
+                  </Text>
                 </View>
-                <Text style={styles.materialName} numberOfLines={1}>
-                  {item.nama_item}
-                </Text>
-                <Text style={styles.materialHarga}>
-                  {item.jumlah}x · {formatRupiah(item.subtotal)}
-                </Text>
-              </View>
-            ))}
+              ))}
 
             <View style={styles.divider} />
-            {totalMaterial > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Material</Text>
-                <Text style={styles.summaryValue}>
-                  {formatRupiah(totalMaterial)}
-                </Text>
-              </View>
-            )}
-            {(workOrder.biaya_jasa ?? 0) > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Material</Text>
+              <Text style={styles.summaryValue}>
+                {formatRupiah(totalMaterial)}
+              </Text>
+            </View>
+            {workOrder.biaya_jasa ? (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Biaya Jasa</Text>
                 <Text style={styles.summaryValue}>
                   {formatRupiah(workOrder.biaya_jasa)}
                 </Text>
               </View>
-            )}
+            ) : null}
             <View style={[styles.summaryRow, styles.totalEstRow]}>
               <Text style={styles.totalEstLabel}>Total Estimasi</Text>
               <Text style={styles.totalEstValue}>
@@ -320,20 +311,13 @@ export default function WorkOrderDetailScreen() {
         )}
 
         {status === "sedang_dikerjakan" && (
-          <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+          <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
             <TouchableOpacity
               style={[styles.actionBtn, styles.progressBtn, { flex: 1 }]}
               onPress={() => setShowProgress(true)}
             >
               <Ionicons name="add-circle-outline" size={18} color="#FFF" />
               <Text style={styles.actionBtnText}>Progress</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.materialBtn, { flex: 1 }]}
-              onPress={() => setShowMaterial(true)}
-            >
-              <Ionicons name="cube-outline" size={18} color="#FFF" />
-              <Text style={styles.actionBtnText}>Material</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, styles.finishBtn, { flex: 1 }]}
@@ -357,6 +341,7 @@ export default function WorkOrderDetailScreen() {
         )}
       </View>
 
+      {/* Render Modals */}
       <AddProgressModal
         visible={showProgress}
         woId={id!}
@@ -367,55 +352,6 @@ export default function WorkOrderDetailScreen() {
         onClose={() => setShowNota(false)}
         woId={id!}
       />
-      <AddMaterialModal
-        visible={showMaterial}
-        woId={id!}
-        onClose={() => setShowMaterial(false)}
-      />
-
-      {/* Modal biaya jasa saat finish WO */}
-      <Modal visible={showFinishModal} transparent animationType="fade">
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}>
-            <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 20, width: "100%" }}>
-              <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 4 }}>
-                Selesaikan WO
-              </Text>
-              <Text style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                Masukkan biaya jasa pengerjaan (isi 0 jika tidak ada).
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 }}>
-                Biaya Jasa (Rp)
-              </Text>
-              <TextInput
-                style={{ backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: "#111827", marginBottom: 20 }}
-                value={biayaJasaInput}
-                onChangeText={setBiayaJasaInput}
-                placeholder="0"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-              />
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <TouchableOpacity
-                  style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center" }}
-                  onPress={() => setShowFinishModal(false)}
-                >
-                  <Text style={{ color: "#6B7280", fontWeight: "600" }}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: "#16A34A", alignItems: "center" }}
-                  onPress={handleConfirmFinish}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Selesaikan</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       <Modal visible={confirmModal.visible} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
@@ -633,6 +569,5 @@ const styles = StyleSheet.create({
   actionBtnText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
   startBtn: { backgroundColor: "#2563EB" },
   progressBtn: { backgroundColor: "#0284C7" },
-  materialBtn: { backgroundColor: "#7C3AED" },
   finishBtn: { backgroundColor: "#16A34A" },
 });
